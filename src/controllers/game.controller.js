@@ -29,6 +29,19 @@ class GameController {
     }
   }
 
+  async getByIgdbId(req, res, next) {
+    try {
+      const game = await gameService.getGameByIgdbId(parseInt(req.params.igdbId));
+
+      res.json({
+        success: true,
+        data: game,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getPopular(req, res, next) {
     try {
       const { limit = 20 } = req.query;

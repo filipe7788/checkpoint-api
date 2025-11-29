@@ -25,6 +25,13 @@ router.get('/popular', gameController.getPopular);
 router.get('/genre/:genre', gameController.getByGenre);
 
 /**
+ * @route   GET /games/igdb/:igdbId
+ * @desc    Get game by IGDB ID
+ * @access  Public
+ */
+router.get('/igdb/:igdbId', gameController.getByIgdbId);
+
+/**
  * @route   GET /games/:id
  * @desc    Get game by ID
  * @access  Public
