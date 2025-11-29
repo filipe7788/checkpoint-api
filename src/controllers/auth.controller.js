@@ -75,6 +75,32 @@ class AuthController {
       next(error);
     }
   }
+
+  async googleCallback(req, res, next) {
+    try {
+      const result = await authService.oauthLogin('google', req.user);
+
+      // Redirect to app with tokens in URL params (or use deep linking)
+      const redirectUrl = `${process.env.APP_DEEP_LINK || 'checkpoint://'}auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`;
+
+      res.redirect(redirectUrl);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async appleCallback(req, res, next) {
+    try {
+      const result = await authService.oauthLogin('apple', req.user);
+
+      // Redirect to app with tokens in URL params (or use deep linking)
+      const redirectUrl = `${process.env.APP_DEEP_LINK || 'checkpoint://'}auth/callback?accessToken=${result.accessToken}&refreshToken=${result.refreshToken}`;
+
+      res.redirect(redirectUrl);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new AuthController();

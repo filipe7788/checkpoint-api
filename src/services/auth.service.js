@@ -187,6 +187,83 @@ class AuthService {
     return { message: 'Password reset successfully' };
   }
 
+  async oauthLogin(provider, profile) {
+    const { id, email, displayName, photos } = profile;
+
+    if (!email) {
+      throw new BadRequestError('Email not provided by OAuth provider');
+    }
+
+    // Try to find existing user by OAuth provider ID
+    let user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { [`${provider}Id`]: id },
+          { email },
+        ],
+      },
+    });
+
+    if (user) {
+      // Update OAuth ID if user exists but doesn't have it linked
+      if (!user[`${provider}Id`]) {
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { [`${provider}Id`]: id },
+        });
+      }
+
+      // Check if banned
+      if (user.isBanned) {
+        throw new UnauthorizedError(`Account banned: ${user.banReason || 'Violation of terms'}`);
+      }
+    } else {
+      // Create new user
+      const username = await this.generateUniqueUsername(displayName || email.split('@')[0]);
+
+      user = await prisma.user.create({
+        data: {
+          email,
+          username,
+          [`${provider}Id`]: id,
+          profileImageUrl: photos && photos.length > 0 ? photos[0].value : null,
+          // No password needed for OAuth users
+          passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
+        },
+      });
+    }
+
+    // Generate tokens
+    const { accessToken, refreshToken } = this.generateTokens(user.id);
+
+    // Return user without password
+    const { passwordHash, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async generateUniqueUsername(baseUsername) {
+    let username = baseUsername.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    let counter = 1;
+
+    while (true) {
+      const existingUser = await prisma.user.findUnique({
+        where: { username },
+      });
+
+      if (!existingUser) {
+        return username;
+      }
+
+      username = `${baseUsername}${counter}`;
+      counter++;
+    }
+  }
+
   generateTokens(userId) {
     const accessToken = jwt.sign(
       { userId },
