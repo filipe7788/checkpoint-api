@@ -188,7 +188,11 @@ class AuthService {
   }
 
   async oauthLogin(provider, profile) {
-    const { id, email, displayName, photos } = profile;
+    const { id, displayName, photos } = profile;
+
+    const email = profile.emails && profile.emails.length > 0
+      ? profile.emails[0].value
+      : profile.email;
 
     if (!email) {
       throw new BadRequestError('Email not provided by OAuth provider');
