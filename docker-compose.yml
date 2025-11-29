@@ -30,6 +30,9 @@ services:
     container_name: checkpoint-api
     ports:
       - "3000:3000"
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://checkpoint:checkpoint@db:5432/checkpoint
