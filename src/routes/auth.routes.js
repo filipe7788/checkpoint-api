@@ -48,7 +48,10 @@ router.post('/reset-password', validate(schemas.resetPassword), authController.r
  * @desc    Initiate Google OAuth login
  * @access  Public
  */
-router.get('/google', passport.authenticate('google', { session: false }));
+router.get('/google', passport.authenticate('google', {
+  session: false,
+  prompt: 'select_account'
+}));
 
 /**
  * @route   GET /auth/google/callback
