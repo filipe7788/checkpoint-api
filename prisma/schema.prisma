@@ -1,0 +1,201 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  user
+  moderator
+  admin
+}
+
+enum GameStatus {
+  owned
+  playing
+  completed
+  want_to_play
+  dropped
+  backlog
+}
+
+enum Platform {
+  steam
+  xbox
+  psn
+  nintendo
+  epic
+}
+
+enum ActivityType {
+  started_playing
+  completed
+  reviewed
+  liked_review
+  followed_user
+}
+
+// ==================== MODELS ====================
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  username        String   @unique
+  passwordHash    String
+  avatar          String?
+  bio             String?
+  role            UserRole @default(user)
+  isBanned        Boolean  @default(false)
+  banReason       String?
+  bannedAt        DateTime?
+  followersCount  Int      @default(0)
+  followingCount  Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  userGames           UserGame[]
+  platformConnections PlatformConnection[]
+  activities          Activity[]           @relation("UserActivities")
+  followers           Follow[]             @relation("Following")
+  following           Follow[]             @relation("Followers")
+  reviewLikes         ReviewLike[]
+
+  @@index([username])
+  @@index([email])
+}
+
+model Game {
+  id          String   @id @default(uuid())
+  igdbId      Int      @unique
+  name        String
+  slug        String
+  summary     String?
+  coverUrl    String?
+  releaseDate DateTime?
+  genres      String[]
+  platforms   String[]
+  igdbRating  Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userGames  UserGame[]
+  activities Activity[]
+
+  @@index([igdbId])
+  @@index([name])
+}
+
+model UserGame {
+  id          String     @id @default(uuid())
+  userId      String
+  gameId      String
+  status      GameStatus
+  platform    String
+  playtime    Int?
+  startedAt   DateTime?
+  completedAt DateTime?
+  favorite    Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game   Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  review Review?
+
+  @@unique([userId, gameId, platform])
+  @@index([userId])
+  @@index([gameId])
+  @@index([status])
+}
+
+model Review {
+  id               String   @id @default(uuid())
+  userGameId       String   @unique
+  rating           Int
+  text             String?
+  containsSpoilers Boolean  @default(false)
+  likesCount       Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  userGame   UserGame      @relation(fields: [userGameId], references: [id], onDelete: Cascade)
+  likes      ReviewLike[]
+  activities Activity[]
+
+  @@index([userGameId])
+  @@index([rating])
+}
+
+model PlatformConnection {
+  id               String    @id @default(uuid())
+  userId           String
+  platform         Platform
+  platformUserId   String
+  platformUsername String?
+  accessToken      String
+  refreshToken     String?
+  tokenExpiresAt   DateTime?
+  lastSyncAt       DateTime?
+  lastSyncError    String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platform])
+  @@index([userId])
+  @@index([platform])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model ReviewLike {
+  id        String   @id @default(uuid())
+  userId    String
+  reviewId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reviewId])
+  @@index([userId])
+  @@index([reviewId])
+}
+
+model Activity {
+  id             String       @id @default(uuid())
+  userId         String
+  type           ActivityType
+  targetGameId   String?
+  targetReviewId String?
+  targetUserId   String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  user         User    @relation("UserActivities", fields: [userId], references: [id], onDelete: Cascade)
+  targetGame   Game?   @relation(fields: [targetGameId], references: [id], onDelete: SetNull)
+  targetReview Review? @relation(fields: [targetReviewId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}

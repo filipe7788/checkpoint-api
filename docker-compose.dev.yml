@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (dev mode)
+  db:
+    image: postgres:15-alpine
+    container_name: checkpoint-db-dev
+    environment:
+      POSTGRES_USER: checkpoint
+      POSTGRES_PASSWORD: checkpoint
+      POSTGRES_DB: checkpoint
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U checkpoint"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - checkpoint-network-dev
+
+  # API Application (dev mode with hot reload)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: checkpoint-api-dev
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://checkpoint:checkpoint@db:5432/checkpoint
+    env_file:
+      - .env
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - /app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - checkpoint-network-dev
+    command: npm run dev
+
+volumes:
+  postgres_data_dev:
+    driver: local
+
+networks:
+  checkpoint-network-dev:
+    driver: bridge

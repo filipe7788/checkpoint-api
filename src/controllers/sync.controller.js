@@ -1,0 +1,191 @@
+const syncService = require('../services/sync.service');
+const steamService = require('../services/steam.service');
+const xboxService = require('../services/xbox.service');
+
+class SyncController {
+  async getStatus(req, res, next) {
+    try {
+      const status = await syncService.getSyncStatus(req.user.id);
+
+      res.json({
+        success: true,
+        data: status,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async initiateConnection(req, res, next) {
+    try {
+      const { platform } = req.params;
+      const state = Buffer.from(JSON.stringify({ userId: req.user.id })).toString('base64');
+
+      let authUrl;
+
+      switch (platform) {
+      case 'steam':
+        authUrl = steamService.getAuthUrl(`${process.env.APP_URL}/sync/callback/steam`);
+        break;
+
+      case 'xbox':
+        authUrl = xboxService.getAuthUrl(state);
+        break;
+
+      case 'psn':
+        // PSN requires manual NPSSO token input
+        return res.json({
+          success: true,
+          data: {
+            message: 'PSN requires manual authentication',
+            instructions: [
+              '1. Log in to https://my.playstation.com',
+              '2. Open browser DevTools > Application > Cookies',
+              '3. Copy the value of "npsso" cookie',
+              '4. POST to /sync/psn with { npsso, accountId }',
+            ],
+          },
+        });
+
+      case 'nintendo':
+      case 'epic':
+        return res.status(501).json({
+          success: false,
+          error: `${platform} sync not yet implemented`,
+        });
+
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Unknown platform',
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { authUrl },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async handleCallback(req, res, next) {
+    try {
+      const { platform } = req.params;
+
+      let credentials;
+
+      switch (platform) {
+      case 'steam':
+        // Extract Steam ID from OpenID response
+        const claimedId = req.query['openid.claimed_id'];
+        const steamId = steamService.extractSteamId(claimedId);
+
+        if (!steamId) {
+          throw new Error('Invalid Steam authentication');
+        }
+
+        credentials = { steamId };
+        break;
+
+      case 'xbox':
+        credentials = { code: req.query.code };
+        const state = JSON.parse(Buffer.from(req.query.state, 'base64').toString());
+        req.user = { id: state.userId };
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Unknown platform',
+        });
+      }
+
+      const connection = await syncService.connectPlatform(req.user.id, platform, credentials);
+
+      // Redirect to frontend with success
+      res.redirect(`${process.env.FRONTEND_URL}/sync/success?platform=${platform}`);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async connectManual(req, res, next) {
+    try {
+      const { platform } = req.params;
+      const credentials = req.body;
+
+      const connection = await syncService.connectPlatform(req.user.id, platform, credentials);
+
+      res.json({
+        success: true,
+        data: connection,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async disconnect(req, res, next) {
+    try {
+      const { platform } = req.params;
+
+      const result = await syncService.disconnectPlatform(req.user.id, platform);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async sync(req, res, next) {
+    try {
+      const { platform } = req.params;
+
+      const result = await syncService.syncPlatform(req.user.id, platform);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async syncAll(req, res, next) {
+    try {
+      const connections = await syncService.getSyncStatus(req.user.id);
+
+      const results = [];
+
+      for (const conn of connections) {
+        if (!conn.isActive) continue;
+
+        try {
+          const result = await syncService.syncPlatform(req.user.id, conn.platform);
+          results.push({ platform: conn.platform, ...result });
+        } catch (error) {
+          results.push({
+            platform: conn.platform,
+            success: false,
+            error: error.message,
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        data: results,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+}
+
+module.exports = new SyncController();

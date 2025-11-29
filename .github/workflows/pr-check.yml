@@ -1,0 +1,55 @@
+name: PR Quality Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  quality:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check for console.logs (warning only)
+        run: |
+          if grep -r "console\.log" src/ --exclude-dir=node_modules; then
+            echo "⚠️  Warning: console.log found in code"
+          fi
+
+      - name: Check Prisma schema
+        run: npx prisma validate
+
+      - name: Check for .env file (should not be committed)
+        run: |
+          if [ -f ".env" ]; then
+            echo "❌ Error: .env file should not be committed!"
+            exit 1
+          fi
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Code quality checks passed!'
+            })
