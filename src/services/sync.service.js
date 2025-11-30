@@ -150,33 +150,30 @@ class SyncService {
         throw new BadRequestError('Unknown platform');
       }
 
-      // Sync games to library - use platform data directly
+      // Search games in IGDB using batch search
+      const gameNames = externalGames.map(g => g.name);
+      const igdbGames = await igdbClient.searchMultipleGames(gameNames);
+
+      // Sync games to library
       let added = 0;
       let updated = 0;
       let failed = 0;
 
       for (const externalGame of externalGames) {
         try {
-          // Create or find game using platform-specific ID
-          let game = await prisma.game.findUnique({
-            where: {
-              [`${platform}Id`]: externalGame.externalId,
-            },
-          });
+          // Find matching IGDB game
+          const igdbGame = igdbGames.find(g =>
+            g && g.name.toLowerCase() === externalGame.name.toLowerCase()
+          );
 
-          if (!game) {
-            // Create new game with platform data
-            game = await prisma.game.create({
-              data: {
-                name: externalGame.name,
-                slug: externalGame.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                [`${platform}Id`]: externalGame.externalId,
-                coverUrl: externalGame.coverUrl || null,
-                platforms: [platform],
-              },
-            });
-            console.log(`[Sync] Created game from ${platform}: ${externalGame.name}`);
+          if (!igdbGame) {
+            console.log(`[Sync] No IGDB match for "${externalGame.name}", skipping...`);
+            failed++;
+            continue;
           }
+
+          // Create or find game by IGDB ID
+          let game = await gameService.findOrCreateByIgdbId(igdbGame.id);
 
           // Check if already in user's library
           const existingUserGame = await prisma.userGame.findUnique({
