@@ -79,7 +79,12 @@ model User {
 
 model Game {
   id          String   @id @default(uuid())
-  igdbId      Int      @unique
+  igdbId      Int?     @unique
+  steamId     String?  @unique
+  xboxId      String?  @unique
+  psnId       String?  @unique
+  epicId      String?  @unique
+  nintendoId  String?  @unique
   name        String
   slug        String
   summary     String?
@@ -95,6 +100,7 @@ model Game {
   activities Activity[]
 
   @@index([igdbId])
+  @@index([steamId])
   @@index([name])
 }
 

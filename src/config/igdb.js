@@ -64,22 +64,34 @@ class IGDBClient {
   }
 
   async searchMultipleGames(gameNames) {
-    // Search multiple games in a single request using OR condition
-    // Maximum of 500 games per request due to IGDB limit
-    const batch = gameNames.slice(0, 500);
+    // Search games in parallel batches to respect rate limits
+    // IGDB allows 4 requests per second, so we batch in groups of 4
+    const allResults = [];
+    const batchSize = 4;
 
-    // Build the where clause with OR conditions for each game name
-    const whereClause = batch
-      .map(name => `name ~ *"${name.replace(/"/g, '\\"')}"*`)
-      .join(' | ');
+    for (let i = 0; i < gameNames.length; i += batchSize) {
+      const batch = gameNames.slice(i, i + batchSize);
 
-    const body = `
-      fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating;
-      where ${whereClause};
-      limit 500;
-    `;
+      // Search all games in this batch in parallel
+      const promises = batch.map(name =>
+        this.searchGames(name, 1)
+          .then(results => results.length > 0 ? results[0] : null)
+          .catch(error => {
+            console.error(`[IGDB] Failed to search for "${name}":`, error.message);
+            return null;
+          })
+      );
 
-    return this.makeRequest('games', body);
+      const results = await Promise.all(promises);
+      allResults.push(...results.filter(r => r !== null));
+
+      // Add small delay between batches to respect rate limits (250ms = 4 req/s)
+      if (i + batchSize < gameNames.length) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+    }
+
+    return allResults;
   }
 
   async getGameById(igdbId) {

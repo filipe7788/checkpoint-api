@@ -24,8 +24,16 @@ class SteamService {
       return games.map(game => ({
         externalId: game.appid.toString(),
         name: game.name,
-        playtime: Math.round(game.playtime_forever || 0), // Convert minutes to minutes
+        playtime: Math.round(game.playtime_forever || 0),
         platform: 'steam',
+        // Steam provides cover images in multiple sizes
+        coverUrl: `https://steamcdn-a.akamaihd.net/steam/apps/${game.appid}/library_600x900.jpg`,
+        iconUrl: game.img_icon_url
+          ? `http://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_icon_url}.jpg`
+          : null,
+        logoUrl: game.img_logo_url
+          ? `http://media.steampowered.com/steamcommunity/public/images/apps/${game.appid}/${game.img_logo_url}.jpg`
+          : null,
       }));
     } catch (error) {
       console.error('[Steam] Error fetching owned games:', error.message);
