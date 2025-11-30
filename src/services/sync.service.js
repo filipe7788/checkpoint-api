@@ -165,6 +165,7 @@ class SyncService {
           .toLowerCase()
           .replace(/[™®©]/g, '') // Remove trademark symbols
           .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
+          .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes
           .replace(/\s+/g, ' ') // Normalize spaces
           .trim();
       };
@@ -205,7 +206,7 @@ class SyncService {
           }
 
           if (!igdbGame) {
-            console.log(`[Sync] No IGDB match for "${externalGame.name}", skipping...`);
+            console.log(`[Sync] No IGDB match for "${externalGame.name}" (normalized: "${normalizedExternalName}"), skipping...`);
             failed++;
             continue;
           }

@@ -74,8 +74,17 @@ class IGDBClient {
 
       // Search all games in this batch in parallel
       const promises = batch.map(name =>
-        this.searchGames(name, 1)
-          .then(results => results.length > 0 ? results[0] : null)
+        this.searchGames(name, 5) // Search top 5 results to get better matches
+          .then(results => {
+            if (results.length === 0) return null;
+
+            // Find the best match - prefer exact name match
+            const exactMatch = results.find(r =>
+              r.name.toLowerCase() === name.toLowerCase()
+            );
+
+            return exactMatch || results[0]; // Return exact match or first result
+          })
           .catch(error => {
             console.error(`[IGDB] Failed to search for "${name}":`, error.message);
             return null;
