@@ -150,62 +150,84 @@ class SyncService {
         throw new BadRequestError('Unknown platform');
       }
 
-      // Sync games to library (limit to 50 games per sync to avoid rate limits)
-      const gamesToSync = externalGames.slice(0, 50);
+      // Sync games to library using batch requests
       let added = 0;
       let updated = 0;
       let failed = 0;
 
-      for (const externalGame of gamesToSync) {
+      // Process games in batches of 50 to avoid overwhelming the API
+      const batchSize = 50;
+      for (let i = 0; i < externalGames.length; i += batchSize) {
+        const batch = externalGames.slice(i, i + batchSize);
+        const gameNames = batch.map(g => g.name);
+
         try {
-          // Try to find game in IGDB by name
-          const igdbGames = await igdbClient.searchGames(externalGame.name, 1);
+          // Search all games in this batch with a single request
+          const igdbGames = await igdbClient.searchMultipleGames(gameNames);
 
-          if (igdbGames.length === 0) {
-            console.log(`[Sync] Game not found in IGDB: ${externalGame.name}`);
-            continue;
-          }
-
-          // Cache game in database
-          const game = await gameService.cacheGame(igdbGames[0]);
-
-          // Check if already in user's library
-          const existingUserGame = await prisma.userGame.findUnique({
-            where: {
-              userId_gameId_platform: {
-                userId,
-                gameId: game.id,
-                platform,
-              },
-            },
+          // Create a map of game names to IGDB results (case-insensitive)
+          const gameMap = new Map();
+          igdbGames.forEach(game => {
+            gameMap.set(game.name.toLowerCase(), game);
           });
 
-          if (existingUserGame) {
-            // Update playtime if greater
-            if (externalGame.playtime > (existingUserGame.playtime || 0)) {
-              await prisma.userGame.update({
-                where: { id: existingUserGame.id },
-                data: { playtime: externalGame.playtime },
+          // Process each external game
+          for (const externalGame of batch) {
+            try {
+              // Try to find matching IGDB game
+              const igdbGame = gameMap.get(externalGame.name.toLowerCase());
+
+              if (!igdbGame) {
+                console.log(`[Sync] Game not found in IGDB: ${externalGame.name}`);
+                failed++;
+                continue;
+              }
+
+              // Cache game in database
+              const game = await gameService.cacheGame(igdbGame);
+
+              // Check if already in user's library
+              const existingUserGame = await prisma.userGame.findUnique({
+                where: {
+                  userId_gameId_platform: {
+                    userId,
+                    gameId: game.id,
+                    platform,
+                  },
+                },
               });
-              updated++;
+
+              if (existingUserGame) {
+                // Update playtime if greater
+                if (externalGame.playtime > (existingUserGame.playtime || 0)) {
+                  await prisma.userGame.update({
+                    where: { id: existingUserGame.id },
+                    data: { playtime: externalGame.playtime },
+                  });
+                  updated++;
+                }
+              } else {
+                // Add new game
+                await prisma.userGame.create({
+                  data: {
+                    userId,
+                    gameId: game.id,
+                    status: externalGame.playtime > 0 ? 'playing' : 'owned',
+                    platform,
+                    playtime: externalGame.playtime || 0,
+                  },
+                });
+                added++;
+              }
+            } catch (error) {
+              // Log error for individual game but continue with others
+              console.error(`[Sync] Failed to sync game "${externalGame.name}":`, error.message);
+              failed++;
             }
-          } else {
-            // Add new game
-            await prisma.userGame.create({
-              data: {
-                userId,
-                gameId: game.id,
-                status: externalGame.playtime > 0 ? 'playing' : 'owned',
-                platform,
-                playtime: externalGame.playtime || 0,
-              },
-            });
-            added++;
           }
         } catch (error) {
-          // Log error for individual game but continue with others
-          console.error(`[Sync] Failed to sync game "${externalGame.name}":`, error.message);
-          failed++;
+          // Log error for entire batch but continue
+          console.error(`[Sync] Failed to process batch:`, error.message);
         }
       }
 
@@ -229,8 +251,6 @@ class SyncService {
         updated,
         failed,
         total: externalGames.length,
-        synced: gamesToSync.length,
-        message: externalGames.length > 50 ? 'Sincronizados os primeiros 50 jogos. Execute a sincronização novamente para continuar.' : null,
       };
     } catch (error) {
       // Log error to connection

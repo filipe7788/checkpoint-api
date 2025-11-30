@@ -63,6 +63,25 @@ class IGDBClient {
     return this.makeRequest('games', body);
   }
 
+  async searchMultipleGames(gameNames) {
+    // Search multiple games in a single request using OR condition
+    // Maximum of 500 games per request due to IGDB limit
+    const batch = gameNames.slice(0, 500);
+
+    // Build the where clause with OR conditions for each game name
+    const whereClause = batch
+      .map(name => `name ~ *"${name.replace(/"/g, '\\"')}"*`)
+      .join(' | ');
+
+    const body = `
+      fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating;
+      where ${whereClause};
+      limit 500;
+    `;
+
+    return this.makeRequest('games', body);
+  }
+
   async getGameById(igdbId) {
     const body = `
       fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating, screenshots.url;
