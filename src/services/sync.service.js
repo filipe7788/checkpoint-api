@@ -28,7 +28,7 @@ class SyncService {
       const xboxTokens = await xboxService.getTokenFromCode(credentials.code);
       platformData = {
         platformUserId: xboxTokens.xuid,
-        platformUsername: null,
+        platformUsername: xboxTokens.userHash, // Store userHash for API calls
         accessToken: xboxTokens.accessToken,
         refreshToken: xboxTokens.refreshToken,
         tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour

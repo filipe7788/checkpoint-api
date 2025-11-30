@@ -69,7 +69,7 @@ class LibraryService {
     if (platform) where.platform = platform;
     if (favorite !== undefined) where.favorite = favorite === 'true';
 
-    const library = await prisma.userGame.findMany({
+    const userGames = await prisma.userGame.findMany({
       where,
       include: {
         game: true,
@@ -84,7 +84,37 @@ class LibraryService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    return library;
+    // Group by game and aggregate platforms
+    const gameMap = new Map();
+
+    for (const userGame of userGames) {
+      const gameId = userGame.game.id;
+
+      if (!gameMap.has(gameId)) {
+        gameMap.set(gameId, {
+          ...userGame,
+          platforms: [userGame.platform],
+          totalPlaytime: userGame.playtime || 0,
+        });
+      } else {
+        const existing = gameMap.get(gameId);
+        existing.platforms.push(userGame.platform);
+        existing.totalPlaytime += userGame.playtime || 0;
+
+        // Keep the most recent playtime and status
+        if (userGame.updatedAt > existing.updatedAt) {
+          existing.status = userGame.status;
+          existing.updatedAt = userGame.updatedAt;
+        }
+
+        // Keep review if exists
+        if (userGame.review) {
+          existing.review = userGame.review;
+        }
+      }
+    }
+
+    return Array.from(gameMap.values());
   }
 
   async getLibraryItem(userId, userGameId) {
