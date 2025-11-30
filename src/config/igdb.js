@@ -88,12 +88,6 @@ class IGDBClient {
               r.name.toLowerCase() === name.toLowerCase()
             );
 
-            if (exactMatch) {
-              console.log(`[IGDB] Exact match found for "${name}": "${exactMatch.name}"`);
-            } else {
-              console.log(`[IGDB] Using first result for "${name}": "${results[0].name}"`);
-            }
-
             return exactMatch || results[0]; // Return exact match or first result
           })
           .catch(error => {
