@@ -85,9 +85,9 @@ class IGDBClient {
       const results = await Promise.all(promises);
       allResults.push(...results.filter(r => r !== null));
 
-      // Add small delay between batches to respect rate limits (250ms = 4 req/s)
+      // Add delay between batches to respect rate limits (1 second between batches)
       if (i + batchSize < gameNames.length) {
-        await new Promise(resolve => setTimeout(resolve, 250));
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 

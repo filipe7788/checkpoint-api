@@ -46,6 +46,11 @@ class GameService {
     return game;
   }
 
+  async findOrCreateByIgdbId(igdbId) {
+    // Alias for getGameByIgdbId - used by sync service
+    return this.getGameByIgdbId(igdbId);
+  }
+
   async getPopularGames(limit = 20) {
     const igdbGames = await igdbClient.getPopularGames(limit);
 
