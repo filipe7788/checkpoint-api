@@ -43,10 +43,13 @@ class ReviewController {
   async getByGame(req, res, next) {
     try {
       const { limit = 20, offset = 0 } = req.query;
+      const userId = req.user?.id || null;
+
       const reviews = await reviewService.getReviewsByGame(
         req.params.gameId,
         parseInt(limit),
-        parseInt(offset)
+        parseInt(offset),
+        userId
       );
 
       res.json({
@@ -61,10 +64,13 @@ class ReviewController {
   async getByUser(req, res, next) {
     try {
       const { limit = 20, offset = 0 } = req.query;
+      const currentUserId = req.user?.id || null;
+
       const reviews = await reviewService.getReviewsByUser(
         req.params.userId,
         parseInt(limit),
-        parseInt(offset)
+        parseInt(offset),
+        currentUserId
       );
 
       res.json({

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const reviewController = require('../controllers/review.controller');
-const { authenticate } = require('../middleware/auth.middleware');
+const { authenticate, optionalAuth } = require('../middleware/auth.middleware');
 const { validate, schemas } = require('../middleware/validator');
 const { createLimiter } = require('../middleware/rateLimiter');
 
@@ -29,16 +29,16 @@ router.delete('/:id', authenticate, reviewController.delete);
 /**
  * @route   GET /reviews/game/:gameId
  * @desc    Get reviews for a game
- * @access  Public
+ * @access  Public (with optional auth for like state)
  */
-router.get('/game/:gameId', reviewController.getByGame);
+router.get('/game/:gameId', optionalAuth, reviewController.getByGame);
 
 /**
  * @route   GET /reviews/user/:userId
  * @desc    Get reviews by a user
- * @access  Public
+ * @access  Public (with optional auth for like state)
  */
-router.get('/user/:userId', reviewController.getByUser);
+router.get('/user/:userId', optionalAuth, reviewController.getByUser);
 
 /**
  * @route   POST /reviews/:id/like

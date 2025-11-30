@@ -129,7 +129,7 @@ class ReviewService {
     return { message: 'Review deleted successfully' };
   }
 
-  async getReviewsByGame(gameId, limit = 20, offset = 0) {
+  async getReviewsByGame(gameId, limit = 20, offset = 0, userId = null) {
     const reviews = await prisma.review.findMany({
       where: {
         userGame: {
@@ -161,10 +161,36 @@ class ReviewService {
       },
     });
 
-    return reviews;
+    // Se houver userId, adicionar informação de curtida
+    if (userId) {
+      const reviewsWithLikeInfo = await Promise.all(
+        reviews.map(async (review) => {
+          const like = await prisma.reviewLike.findUnique({
+            where: {
+              userId_reviewId: {
+                userId,
+                reviewId: review.id,
+              },
+            },
+          });
+
+          return {
+            ...review,
+            isLikedByCurrentUser: !!like,
+          };
+        })
+      );
+
+      return reviewsWithLikeInfo;
+    }
+
+    return reviews.map((review) => ({
+      ...review,
+      isLikedByCurrentUser: false,
+    }));
   }
 
-  async getReviewsByUser(userId, limit = 20, offset = 0) {
+  async getReviewsByUser(userId, limit = 20, offset = 0, currentUserId = null) {
     const reviews = await prisma.review.findMany({
       where: {
         userGame: {
@@ -189,7 +215,33 @@ class ReviewService {
       },
     });
 
-    return reviews;
+    // Se houver currentUserId, adicionar informação de curtida
+    if (currentUserId) {
+      const reviewsWithLikeInfo = await Promise.all(
+        reviews.map(async (review) => {
+          const like = await prisma.reviewLike.findUnique({
+            where: {
+              userId_reviewId: {
+                userId: currentUserId,
+                reviewId: review.id,
+              },
+            },
+          });
+
+          return {
+            ...review,
+            isLikedByCurrentUser: !!like,
+          };
+        })
+      );
+
+      return reviewsWithLikeInfo;
+    }
+
+    return reviews.map((review) => ({
+      ...review,
+      isLikedByCurrentUser: false,
+    }));
   }
 
   async likeReview(userId, reviewId) {

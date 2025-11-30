@@ -150,54 +150,62 @@ class SyncService {
         throw new BadRequestError('Unknown platform');
       }
 
-      // Sync games to library
+      // Sync games to library (limit to 50 games per sync to avoid rate limits)
+      const gamesToSync = externalGames.slice(0, 50);
       let added = 0;
       let updated = 0;
+      let failed = 0;
 
-      for (const externalGame of externalGames) {
-        // Try to find game in IGDB by name
-        const igdbGames = await igdbClient.searchGames(externalGame.name, 1);
+      for (const externalGame of gamesToSync) {
+        try {
+          // Try to find game in IGDB by name
+          const igdbGames = await igdbClient.searchGames(externalGame.name, 1);
 
-        if (igdbGames.length === 0) {
-          console.log(`[Sync] Game not found in IGDB: ${externalGame.name}`);
-          continue;
-        }
-
-        // Cache game in database
-        const game = await gameService.cacheGame(igdbGames[0]);
-
-        // Check if already in user's library
-        const existingUserGame = await prisma.userGame.findUnique({
-          where: {
-            userId_gameId_platform: {
-              userId,
-              gameId: game.id,
-              platform,
-            },
-          },
-        });
-
-        if (existingUserGame) {
-          // Update playtime if greater
-          if (externalGame.playtime > (existingUserGame.playtime || 0)) {
-            await prisma.userGame.update({
-              where: { id: existingUserGame.id },
-              data: { playtime: externalGame.playtime },
-            });
-            updated++;
+          if (igdbGames.length === 0) {
+            console.log(`[Sync] Game not found in IGDB: ${externalGame.name}`);
+            continue;
           }
-        } else {
-          // Add new game
-          await prisma.userGame.create({
-            data: {
-              userId,
-              gameId: game.id,
-              status: externalGame.playtime > 0 ? 'playing' : 'owned',
-              platform,
-              playtime: externalGame.playtime || 0,
+
+          // Cache game in database
+          const game = await gameService.cacheGame(igdbGames[0]);
+
+          // Check if already in user's library
+          const existingUserGame = await prisma.userGame.findUnique({
+            where: {
+              userId_gameId_platform: {
+                userId,
+                gameId: game.id,
+                platform,
+              },
             },
           });
-          added++;
+
+          if (existingUserGame) {
+            // Update playtime if greater
+            if (externalGame.playtime > (existingUserGame.playtime || 0)) {
+              await prisma.userGame.update({
+                where: { id: existingUserGame.id },
+                data: { playtime: externalGame.playtime },
+              });
+              updated++;
+            }
+          } else {
+            // Add new game
+            await prisma.userGame.create({
+              data: {
+                userId,
+                gameId: game.id,
+                status: externalGame.playtime > 0 ? 'playing' : 'owned',
+                platform,
+                playtime: externalGame.playtime || 0,
+              },
+            });
+            added++;
+          }
+        } catch (error) {
+          // Log error for individual game but continue with others
+          console.error(`[Sync] Failed to sync game "${externalGame.name}":`, error.message);
+          failed++;
         }
       }
 
@@ -219,7 +227,10 @@ class SyncService {
         success: true,
         added,
         updated,
+        failed,
         total: externalGames.length,
+        synced: gamesToSync.length,
+        message: externalGames.length > 50 ? 'Sincronizados os primeiros 50 jogos. Execute a sincronização novamente para continuar.' : null,
       };
     } catch (error) {
       // Log error to connection
