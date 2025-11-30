@@ -13,7 +13,7 @@ class XboxService {
       client_id: this.clientId,
       response_type: 'code',
       redirect_uri: this.redirectUri,
-      scope: 'Xboxlive.signin Xboxlive.offline_access',
+      scope: 'XboxLive.signin offline_access',
       state,
     });
 
