@@ -92,6 +92,15 @@ class SyncService {
       throw new NotFoundError('Platform not connected');
     }
 
+    // Delete all games from this platform in user's library
+    await prisma.userGame.deleteMany({
+      where: {
+        userId,
+        platform,
+      },
+    });
+
+    // Delete the platform connection
     await prisma.platformConnection.delete({
       where: {
         userId_platform: {
