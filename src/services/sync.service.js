@@ -150,9 +150,28 @@ class SyncService {
         throw new BadRequestError('Unknown platform');
       }
 
+      // Helper function to normalize game names for matching
+      const normalizeGameName = (name) => {
+        return name
+          .toLowerCase()
+          .replace(/[™®©]/g, '') // Remove trademark symbols
+          .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
+          .replace(/\s+/g, ' ') // Normalize spaces
+          .trim();
+      };
+
       // Search games in IGDB using batch search
       const gameNames = externalGames.map(g => g.name);
       const igdbGames = await igdbClient.searchMultipleGames(gameNames);
+
+      // Create a map for faster lookups
+      const igdbGameMap = new Map();
+      igdbGames.forEach(game => {
+        if (game) {
+          const normalized = normalizeGameName(game.name);
+          igdbGameMap.set(normalized, game);
+        }
+      });
 
       // Sync games to library
       let added = 0;
@@ -161,10 +180,20 @@ class SyncService {
 
       for (const externalGame of externalGames) {
         try {
-          // Find matching IGDB game
-          const igdbGame = igdbGames.find(g =>
-            g && g.name.toLowerCase() === externalGame.name.toLowerCase()
-          );
+          // Try to find matching IGDB game using normalized names
+          const normalizedExternalName = normalizeGameName(externalGame.name);
+          let igdbGame = igdbGameMap.get(normalizedExternalName);
+
+          // If no exact match, try fuzzy matching
+          if (!igdbGame) {
+            for (const [normalizedName, game] of igdbGameMap.entries()) {
+              // Check if one name contains the other (handles cases like "The Witcher 3: Wild Hunt" vs "The Witcher 3")
+              if (normalizedName.includes(normalizedExternalName) || normalizedExternalName.includes(normalizedName)) {
+                igdbGame = game;
+                break;
+              }
+            }
+          }
 
           if (!igdbGame) {
             console.log(`[Sync] No IGDB match for "${externalGame.name}", skipping...`);
