@@ -74,14 +74,25 @@ class IGDBClient {
 
       // Search all games in this batch in parallel
       const promises = batch.map(name =>
-        this.searchGames(name, 5) // Search top 5 results to get better matches
+        this.searchGames(name, 10) // Search top 10 results to get better matches
           .then(results => {
-            if (results.length === 0) return null;
+            if (results.length === 0) {
+              console.log(`[IGDB] No results for "${name}"`);
+              return null;
+            }
+
+            console.log(`[IGDB] Found ${results.length} results for "${name}":`, results.map(r => r.name).join(', '));
 
             // Find the best match - prefer exact name match
             const exactMatch = results.find(r =>
               r.name.toLowerCase() === name.toLowerCase()
             );
+
+            if (exactMatch) {
+              console.log(`[IGDB] Exact match found for "${name}": "${exactMatch.name}"`);
+            } else {
+              console.log(`[IGDB] Using first result for "${name}": "${results[0].name}"`);
+            }
 
             return exactMatch || results[0]; // Return exact match or first result
           })
