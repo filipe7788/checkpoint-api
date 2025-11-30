@@ -1,27 +1,27 @@
 -- AlterTable
-ALTER TABLE "Game" ALTER COLUMN "igdbId" DROP NOT NULL;
+ALTER TABLE "public"."Game" ALTER COLUMN "igdbId" DROP NOT NULL;
 
 -- AlterTable
-ALTER TABLE "Game" ADD COLUMN "steamId" TEXT,
-ADD COLUMN "xboxId" TEXT,
-ADD COLUMN "psnId" TEXT,
-ADD COLUMN "epicId" TEXT,
-ADD COLUMN "nintendoId" TEXT;
+ALTER TABLE "public"."Game" ADD COLUMN IF NOT EXISTS "steamId" TEXT,
+ADD COLUMN IF NOT EXISTS "xboxId" TEXT,
+ADD COLUMN IF NOT EXISTS "psnId" TEXT,
+ADD COLUMN IF NOT EXISTS "epicId" TEXT,
+ADD COLUMN IF NOT EXISTS "nintendoId" TEXT;
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Game_steamId_key" ON "Game"("steamId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Game_steamId_key" ON "public"."Game"("steamId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Game_xboxId_key" ON "Game"("xboxId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Game_xboxId_key" ON "public"."Game"("xboxId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Game_psnId_key" ON "Game"("psnId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Game_psnId_key" ON "public"."Game"("psnId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Game_epicId_key" ON "Game"("epicId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Game_epicId_key" ON "public"."Game"("epicId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Game_nintendoId_key" ON "Game"("nintendoId");
+CREATE UNIQUE INDEX IF NOT EXISTS "Game_nintendoId_key" ON "public"."Game"("nintendoId");
 
 -- CreateIndex
-CREATE INDEX "Game_steamId_idx" ON "Game"("steamId");
+CREATE INDEX IF NOT EXISTS "Game_steamId_idx" ON "public"."Game"("steamId");
