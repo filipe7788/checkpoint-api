@@ -104,8 +104,15 @@ class SyncController {
 
       const connection = await syncService.connectPlatform(req.user.id, platform, credentials);
 
-      // Redirect to frontend with success
-      res.redirect(`${process.env.FRONTEND_URL}/sync/success?platform=${platform}`);
+      // Auto-sync after connection
+      try {
+        await syncService.syncPlatform(req.user.id, platform);
+      } catch (syncError) {
+        console.error('[Sync] Auto-sync failed:', syncError);
+      }
+
+      // Redirect to app with success (deep link)
+      res.redirect(`checkpoint://platforms?connected=${platform}`);
     } catch (error) {
       next(error);
     }
