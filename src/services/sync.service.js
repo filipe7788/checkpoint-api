@@ -24,14 +24,14 @@ class SyncService {
       break;
 
     case 'xbox':
-      // For Xbox, credentials should contain the gamertag
-      const xboxProfile = await xboxService.connectAccount(credentials.gamertag);
+      // For Xbox, credentials should contain the OAuth code from callback
+      const xboxProfile = await xboxService.connectAccount(credentials.code);
       platformData = {
         platformUserId: xboxProfile.externalId,
         platformUsername: xboxProfile.username,
-        accessToken: 'xbl_io_api',
+        accessToken: xboxProfile.accessToken, // Secret key from xbl.io
         refreshToken: null,
-        tokenExpiresAt: null,
+        tokenExpiresAt: null, // xbl.io tokens don't expire (user can revoke)
       };
       break;
 
@@ -136,8 +136,11 @@ class SyncService {
         break;
 
       case 'xbox':
-        // Usar XUID armazenado para buscar jogos via API pública
-        externalGames = await xboxService.syncLibrary(connection.platformUserId);
+        // Usar XUID e secret key para buscar jogos
+        externalGames = await xboxService.syncLibrary(
+          connection.platformUserId,
+          connection.accessToken
+        );
         break;
 
       case 'psn':
