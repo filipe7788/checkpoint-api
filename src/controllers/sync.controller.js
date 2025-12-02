@@ -29,9 +29,7 @@ class SyncController {
         break;
 
       case 'xbox':
-        // xbl.io OAuth flow - user will be redirected back to our callback
-        // Store userId in temporary state for callback retrieval
-        authUrl = xboxService.getAuthUrl(req.user.id);
+        authUrl = xboxService.getAuthUrl(state);
         break;
 
       case 'psn':
@@ -92,26 +90,9 @@ class SyncController {
         break;
 
       case 'xbox':
-        // xbl.io returns 'code' parameter after user authorizes
-        if (!req.query.code) {
-          throw new Error('Missing authorization code from Xbox');
-        }
-
-        // Retrieve userId from state parameter
-        const state = req.query.state;
-        if (!state) {
-          throw new Error('Missing state parameter');
-        }
-
-        const userId = xboxService.getUserFromState(state);
-        if (!userId) {
-          throw new Error('Invalid or expired authentication session. Please try again.');
-        }
-
         credentials = { code: req.query.code };
-
-        // Set user in request for subsequent calls
-        req.user = { id: userId };
+        const callbackState = JSON.parse(Buffer.from(req.query.state, 'base64').toString());
+        req.user = { id: callbackState.userId };
         break;
 
       default:

@@ -24,14 +24,14 @@ class SyncService {
       break;
 
     case 'xbox':
-      // For Xbox, credentials should contain the OAuth code from callback
-      const xboxProfile = await xboxService.connectAccount(credentials.code);
+      // For Xbox, credentials should contain the auth code
+      const xboxTokens = await xboxService.getTokenFromCode(credentials.code);
       platformData = {
-        platformUserId: xboxProfile.externalId,
-        platformUsername: xboxProfile.username,
-        accessToken: xboxProfile.accessToken, // Secret key from xbl.io
-        refreshToken: null,
-        tokenExpiresAt: null, // xbl.io tokens don't expire (user can revoke)
+        platformUserId: xboxTokens.xuid,
+        platformUsername: xboxTokens.userHash, // Store userHash for API calls
+        accessToken: xboxTokens.accessToken,
+        refreshToken: xboxTokens.refreshToken,
+        tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
       };
       break;
 
@@ -136,10 +136,11 @@ class SyncService {
         break;
 
       case 'xbox':
-        // Usar XUID e secret key para buscar jogos
-        externalGames = await xboxService.syncLibrary(
+        // Note: May need to refresh token if expired
+        externalGames = await xboxService.getOwnedGames(
           connection.platformUserId,
-          connection.accessToken
+          connection.accessToken,
+          connection.platformUsername // userHash stored here
         );
         break;
 
