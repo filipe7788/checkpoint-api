@@ -53,4 +53,11 @@ router.post('/:platform/sync', authenticate, syncLimiter, syncController.sync);
  */
 router.post('/all', authenticate, syncLimiter, syncController.syncAll);
 
+/**
+ * @route   GET /sync/xbox/quota
+ * @desc    Get Xbox API quota information
+ * @access  Private
+ */
+router.get('/xbox/quota', authenticate, syncController.getXboxQuota);
+
 module.exports = router;

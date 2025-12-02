@@ -193,6 +193,19 @@ class SyncController {
       next(error);
     }
   }
+
+  async getXboxQuota(req, res, next) {
+    try {
+      const quotaInfo = xboxService.getQuotaInfo();
+
+      res.json({
+        success: true,
+        data: quotaInfo,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new SyncController();
