@@ -35,15 +35,6 @@ class SyncService {
       };
       break;
 
-
-
-
-
-
-
-
-
-
     case 'psn':
       // For PSN, credentials should contain NPSSO token
       const psnTokens = await psnService.authenticateWithNpsso(credentials.npsso);

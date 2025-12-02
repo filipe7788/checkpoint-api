@@ -12,11 +12,14 @@ const xboxRateLimiter = require('../utils/xboxRateLimiter');
  */
 class XboxService {
   constructor() {
-    this.apiKey = process.env.XBL_IO_API_KEY;
+    this.apiKey = process.env.XBL_IO_API_KEY?.trim();
     this.baseUrl = 'https://xbl.io/api/v2';
 
     if (!this.apiKey) {
       console.warn('[Xbox] XBL_IO_API_KEY não configurada no .env');
+    } else {
+      console.log('[Xbox] API Key carregada:', this.apiKey.substring(0, 8) + '...');
+      console.log('[Xbox] API Key length:', this.apiKey.length, 'chars');
     }
   }
 
@@ -45,11 +48,16 @@ class XboxService {
     }
 
     try {
+      const headers = {
+        'X-Authorization': this.apiKey,
+        'Accept': 'application/json',
+      };
+
+      console.log('[Xbox API] Request URL:', `${this.baseUrl}${endpoint}`);
+      console.log('[Xbox API] Headers:', JSON.stringify(headers));
+
       const response = await axios.get(`${this.baseUrl}${endpoint}`, {
-        headers: {
-          'X-Authorization': this.apiKey,
-          'Accept': 'application/json',
-        },
+        headers,
         timeout: 15000, // 15 segundos
       });
 
