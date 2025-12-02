@@ -22,6 +22,7 @@ class XboxService {
     this.privateKey = process.env.XBL_IO_PRIVATE_KEY?.trim();
     this.baseUrl = 'https://xbl.io/api/v2';
     this.authUrl = 'https://xbl.io/app';
+    this.pendingAuth = new Map(); // Temporary storage for OAuth state: code -> userId
 
     if (!this.publicKey || !this.privateKey) {
       console.warn('[Xbox] XBL_IO_PUBLIC_KEY ou XBL_IO_PRIVATE_KEY não configuradas no .env');
@@ -32,14 +33,51 @@ class XboxService {
   }
 
   /**
-   * Gera URL de autenticação para o usuário
+   * Gera URL de autenticação para o usuário e armazena state
+   * @param {string} userId - ID do usuário que está conectando
    * @returns {string} URL de autenticação
    */
-  getAuthUrl() {
+  getAuthUrl(userId) {
     if (!this.publicKey) {
       throw new BadRequestError('Xbox API não configurada no servidor');
     }
-    return `${this.authUrl}/auth/${this.publicKey}`;
+
+    // Generate unique state and store userId
+    const state = Buffer.from(JSON.stringify({ userId, timestamp: Date.now() })).toString('base64');
+    this.pendingAuth.set(state, { userId, expiresAt: Date.now() + 10 * 60 * 1000 }); // 10 min expiry
+
+    // Clean up expired states
+    this.cleanupExpiredStates();
+
+    return `${this.authUrl}/auth/${this.publicKey}?state=${state}`;
+  }
+
+  /**
+   * Recupera userId do state e limpa
+   * @param {string} state - State parameter do callback
+   * @returns {string|null} userId ou null se inválido/expirado
+   */
+  getUserFromState(state) {
+    const authData = this.pendingAuth.get(state);
+    if (!authData) return null;
+    if (Date.now() > authData.expiresAt) {
+      this.pendingAuth.delete(state);
+      return null;
+    }
+    this.pendingAuth.delete(state);
+    return authData.userId;
+  }
+
+  /**
+   * Limpa states expirados do Map
+   */
+  cleanupExpiredStates() {
+    const now = Date.now();
+    for (const [state, data] of this.pendingAuth.entries()) {
+      if (now > data.expiresAt) {
+        this.pendingAuth.delete(state);
+      }
+    }
   }
 
   /**
