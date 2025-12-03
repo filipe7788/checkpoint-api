@@ -16,11 +16,18 @@ class PSNService {
 
       console.log('[PSN] Authorization object:', JSON.stringify(authorization, null, 2));
 
+      // Decode idToken to get account_id (sub field)
+      const idTokenPayload = JSON.parse(
+        Buffer.from(authorization.idToken.split('.')[1], 'base64').toString()
+      );
+
+      console.log('[PSN] Account ID from idToken:', idTokenPayload.sub);
+
       return {
         accessToken: authorization.accessToken,
         refreshToken: authorization.refreshToken,
         expiresIn: authorization.expiresIn,
-        accountId: authorization.accountId || 'me', // Use 'me' as fallback
+        accountId: idTokenPayload.sub, // Account ID from JWT sub claim
       };
     } catch (error) {
       console.error('[PSN] Error authenticating:', error.message);
