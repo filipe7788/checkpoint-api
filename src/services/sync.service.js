@@ -142,10 +142,14 @@ class SyncService {
         break;
 
       case 'psn':
+        console.log('[Sync] Fetching PSN games...');
+        console.log('[Sync] PSN platformUserId:', connection.platformUserId);
+        console.log('[Sync] PSN accessToken length:', connection.accessToken?.length);
         externalGames = await psnService.getOwnedGames(
           { accessToken: connection.accessToken },
           connection.platformUserId
         );
+        console.log('[Sync] PSN returned', externalGames.length, 'games');
         break;
 
       case 'nintendo':

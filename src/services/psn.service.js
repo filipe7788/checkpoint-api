@@ -37,12 +37,23 @@ class PSNService {
 
   async getOwnedGames(authorization, accountId) {
     try {
+      console.log('[PSN] Fetching games for accountId:', accountId);
+      console.log('[PSN] Authorization:', JSON.stringify(authorization, null, 2));
+
       const response = await getUserTitles({ accountId }, authorization);
+
+      console.log('[PSN] getUserTitles response:', JSON.stringify(response, null, 2));
 
       const titles = response.trophyTitles || [];
 
+      console.log('[PSN] Found', titles.length, 'games with trophies');
+
+      if (titles.length > 0) {
+        console.log('[PSN] First 3 games:', titles.slice(0, 3).map(t => t.titleName));
+      }
+
       // Note: PSN API doesn't provide playtime
-      return titles.map(title => ({
+      const games = titles.map(title => ({
         externalId: title.npCommunicationId,
         name: title.titleName,
         playtime: 0, // Not available
@@ -56,8 +67,13 @@ class PSNService {
           },
         },
       }));
+
+      console.log('[PSN] Returning', games.length, 'games');
+      return games;
     } catch (error) {
       console.error('[PSN] Error fetching owned games:', error.message);
+      console.error('[PSN] Error stack:', error.stack);
+      console.error('[PSN] Error details:', JSON.stringify(error, null, 2));
       throw new BadRequestError('Failed to fetch PSN library');
     }
   }
