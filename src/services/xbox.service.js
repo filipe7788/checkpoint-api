@@ -56,19 +56,39 @@ class XboxService {
    */
   async getOwnedGames(xuid) {
     try {
-      const response = await axios.get(`${this.baseUrl}/player/titleHistory/${xuid}`, {
+      // Try title history first
+      const historyResponse = await axios.get(`${this.baseUrl}/player/titleHistory/${xuid}`, {
         headers: {
           'X-Authorization': this.apiKey,
           'Accept': 'application/json',
         },
       });
 
-      const titles = response.data?.titles || [];
-      console.log(response);
-      
+      let titles = historyResponse.data?.titles || [];
+      console.log('[Xbox] Title history count:', titles.length);
+
+      // If title history is empty, try achievements endpoint as fallback
+      if (titles.length === 0) {
+        console.log('[Xbox] Title history empty, trying achievements...');
+        try {
+          const achievementsResponse = await axios.get(`${this.baseUrl}/achievements/player/${xuid}`, {
+            headers: {
+              'X-Authorization': this.apiKey,
+              'Accept': 'application/json',
+            },
+          });
+
+          // Achievements endpoint returns titles in a different format
+          titles = achievementsResponse.data?.titles || [];
+          console.log('[Xbox] Achievements count:', titles.length);
+        } catch (achievementError) {
+          console.warn('[Xbox] Could not fetch achievements:', achievementError.message);
+        }
+      }
+
       return titles.map(title => ({
-        externalId: title.titleId || title.pfn,
-        name: title.name,
+        externalId: title.titleId || title.pfn || title.id,
+        name: title.name || title.titleName,
         playtime: 0,
         platform: 'xbox',
       }));
