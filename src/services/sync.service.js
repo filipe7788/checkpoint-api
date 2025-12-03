@@ -69,9 +69,11 @@ class SyncService {
         lastSyncError: null,
       },
       create: {
-        userId,
         platform,
         ...platformData,
+        user: {
+          connect: { id: userId },
+        },
       },
     });
 
