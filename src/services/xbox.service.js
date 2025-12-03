@@ -84,23 +84,27 @@ class XboxService {
     // Step 1: Search for gamertag to get XUID
     const searchResult = await this.searchGamertag(gamertag);
 
-    console.log('[Xbox] Search result:', JSON.stringify(searchResult, null, 2));
+    // Search result has a 'people' array with results
+    if (!searchResult.people || searchResult.people.length === 0) {
+      throw new BadRequestError('Gamertag not found. Please check the spelling.');
+    }
 
-    // searchResult should contain XUID (or xuid) and gamertag
-    const xuid = searchResult.xuid || searchResult.XUID || searchResult.id;
+    const person = searchResult.people[0];
+    const xuid = person.xuid;
 
     if (!xuid) {
-      console.error('[Xbox] Could not find XUID in search result. Keys:', Object.keys(searchResult));
       throw new BadRequestError('Could not find XUID for this gamertag');
     }
+
+    console.log('[Xbox] Found XUID:', xuid, 'for gamertag:', person.gamertag || person.modernGamertag);
 
     // Step 2: Get full profile using XUID
     const profile = await this.getProfileByXuid(xuid);
 
     return {
       xuid: xuid,
-      gamertag: profile.gamertag || searchResult.gamertag || gamertag,
-      gamerscore: profile.gamerScore || profile.gamerscore || 0,
+      gamertag: person.modernGamertag || person.gamertag || gamertag,
+      gamerscore: parseInt(person.gamerScore) || profile.gamerScore || 0,
     };
   }
 }
