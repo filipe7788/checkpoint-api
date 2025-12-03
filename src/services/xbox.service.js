@@ -16,11 +16,29 @@ class XboxService {
   }
 
   /**
-   * Get user profile by gamertag
+   * Search for user by gamertag and get their XUID
    */
-  async getProfileByGamertag(gamertag) {
+  async searchGamertag(gamertag) {
     try {
-      const response = await axios.get(`${this.baseUrl}/account/${gamertag}`, {
+      const response = await axios.get(`${this.baseUrl}/search/${encodeURIComponent(gamertag)}`, {
+        headers: {
+          'X-Authorization': this.apiKey,
+          'Accept': 'application/json',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('[Xbox] Error searching gamertag:', error.response?.data || error.message);
+      throw new BadRequestError('Gamertag not found. Please check the spelling.');
+    }
+  }
+
+  /**
+   * Get user profile by XUID
+   */
+  async getProfileByXuid(xuid) {
+    try {
+      const response = await axios.get(`${this.baseUrl}/account/${xuid}`, {
         headers: {
           'X-Authorization': this.apiKey,
           'Accept': 'application/json',
@@ -63,12 +81,23 @@ class XboxService {
    * Connect account by gamertag (manual connection)
    */
   async connectByGamertag(gamertag) {
-    const profile = await this.getProfileByGamertag(gamertag);
+    // Step 1: Search for gamertag to get XUID
+    const searchResult = await this.searchGamertag(gamertag);
+
+    // searchResult should contain XUID (or xuid) and gamertag
+    const xuid = searchResult.xuid || searchResult.XUID || searchResult.id;
+
+    if (!xuid) {
+      throw new BadRequestError('Could not find XUID for this gamertag');
+    }
+
+    // Step 2: Get full profile using XUID
+    const profile = await this.getProfileByXuid(xuid);
 
     return {
-      xuid: profile.xuid || profile.id,
-      gamertag: profile.gamertag || gamertag,
-      gamerscore: profile.gamerScore || 0,
+      xuid: xuid,
+      gamertag: profile.gamertag || searchResult.gamertag || gamertag,
+      gamerscore: profile.gamerScore || profile.gamerscore || 0,
     };
   }
 }
