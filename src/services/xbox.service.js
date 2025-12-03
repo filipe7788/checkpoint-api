@@ -84,10 +84,13 @@ class XboxService {
     // Step 1: Search for gamertag to get XUID
     const searchResult = await this.searchGamertag(gamertag);
 
+    console.log('[Xbox] Search result:', JSON.stringify(searchResult, null, 2));
+
     // searchResult should contain XUID (or xuid) and gamertag
     const xuid = searchResult.xuid || searchResult.XUID || searchResult.id;
 
     if (!xuid) {
+      console.error('[Xbox] Could not find XUID in search result. Keys:', Object.keys(searchResult));
       throw new BadRequestError('Could not find XUID for this gamertag');
     }
 
