@@ -1,4 +1,5 @@
 const axios = require('axios');
+const rateLimiter = require('../utils/igdbRateLimiter');
 
 class IGDBClient {
   constructor() {
@@ -38,20 +39,23 @@ class IGDBClient {
   async makeRequest(endpoint, body) {
     const token = await this.getAccessToken();
 
-    try {
-      const response = await axios.post(`https://api.igdb.com/v4/${endpoint}`, body, {
-        headers: {
-          'Client-ID': this.clientId,
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'text/plain'
-        }
-      });
+    // Use rate limiter to avoid exceeding 4 requests per second
+    return rateLimiter.enqueue(async () => {
+      try {
+        const response = await axios.post(`https://api.igdb.com/v4/${endpoint}`, body, {
+          headers: {
+            'Client-ID': this.clientId,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'text/plain'
+          }
+        });
 
-      return response.data;
-    } catch (error) {
-      console.error(`[IGDB] Request to ${endpoint} failed:`, error.message);
-      throw error;
-    }
+        return response.data;
+      } catch (error) {
+        console.error(`[IGDB] Request to ${endpoint} failed:`, error.message);
+        throw error;
+      }
+    });
   }
 
   async searchGames(query, limit = 10) {

@@ -233,6 +233,7 @@ class SyncService {
             }
           } else {
             // Add new game
+            console.log(`[Sync] Adding "${game.name}" to platform: ${platform} (external: ${externalGame.platform || 'undefined'})`);
             await prisma.userGame.create({
               data: {
                 userId,
