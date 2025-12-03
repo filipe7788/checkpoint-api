@@ -145,8 +145,19 @@ class SyncService {
         console.log('[Sync] Fetching PSN games...');
         console.log('[Sync] PSN platformUserId:', connection.platformUserId);
         console.log('[Sync] PSN accessToken length:', connection.accessToken?.length);
+        console.log('[Sync] PSN refreshToken length:', connection.refreshToken?.length);
+
+        // Build full authorization object as psn-api expects
+        const psnAuth = {
+          accessToken: connection.accessToken,
+          refreshToken: connection.refreshToken,
+          expiresIn: connection.tokenExpiresAt
+            ? Math.floor((new Date(connection.tokenExpiresAt).getTime() - Date.now()) / 1000)
+            : 3600,
+        };
+
         externalGames = await psnService.getOwnedGames(
-          { accessToken: connection.accessToken },
+          psnAuth,
           connection.platformUserId
         );
         console.log('[Sync] PSN returned', externalGames.length, 'games');
