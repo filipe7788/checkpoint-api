@@ -29,7 +29,7 @@ class SyncService {
       platformData = {
         platformUserId: xboxProfile.xuid,
         platformUsername: xboxProfile.gamertag,
-        accessToken: null, // OpenXBL uses server API key, not user tokens
+        accessToken: process.env.OPENXBL_API_KEY, // OpenXBL uses server API key
         refreshToken: null,
         tokenExpiresAt: null,
       };
