@@ -56,7 +56,7 @@ class XboxService {
    */
   async getOwnedGames(xuid) {
     try {
-      const response = await axios.get(`${this.baseUrl}/titlehub/titleHistory/${xuid}`, {
+      const response = await axios.get(`${this.baseUrl}/player/titleHistory/${xuid}`, {
         headers: {
           'X-Authorization': this.apiKey,
           'Accept': 'application/json',
