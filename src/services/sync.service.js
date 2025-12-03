@@ -24,14 +24,14 @@ class SyncService {
       break;
 
     case 'xbox':
-      // For Xbox, credentials should contain the auth code
-      const xboxTokens = await xboxService.getTokenFromCode(credentials.code);
+      // For Xbox, credentials should contain gamertag (manual connection)
+      const xboxProfile = await xboxService.connectByGamertag(credentials.gamertag);
       platformData = {
-        platformUserId: xboxTokens.xuid,
-        platformUsername: xboxTokens.userHash, // Store userHash for API calls
-        accessToken: xboxTokens.accessToken,
-        refreshToken: xboxTokens.refreshToken,
-        tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+        platformUserId: xboxProfile.xuid,
+        platformUsername: xboxProfile.gamertag,
+        accessToken: null, // OpenXBL uses server API key, not user tokens
+        refreshToken: null,
+        tokenExpiresAt: null,
       };
       break;
 
@@ -136,12 +136,7 @@ class SyncService {
         break;
 
       case 'xbox':
-        // Note: May need to refresh token if expired
-        externalGames = await xboxService.getOwnedGames(
-          connection.platformUserId,
-          connection.accessToken,
-          connection.platformUsername // userHash stored here
-        );
+        externalGames = await xboxService.getOwnedGames(connection.platformUserId);
         break;
 
       case 'psn':

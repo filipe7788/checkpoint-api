@@ -29,8 +29,17 @@ class SyncController {
         break;
 
       case 'xbox':
-        authUrl = xboxService.getAuthUrl(state);
-        break;
+        // Xbox requires manual gamertag input
+        return res.json({
+          success: true,
+          data: {
+            message: 'Xbox requires manual authentication',
+            instructions: [
+              '1. Enter your Xbox Gamertag',
+              '2. POST to /sync/xbox with { gamertag }',
+            ],
+          },
+        });
 
       case 'psn':
         // PSN requires manual NPSSO token input
@@ -87,12 +96,6 @@ class SyncController {
         }
 
         credentials = { steamId };
-        break;
-
-      case 'xbox':
-        credentials = { code: req.query.code };
-        const callbackState = JSON.parse(Buffer.from(req.query.state, 'base64').toString());
-        req.user = { id: callbackState.userId };
         break;
 
       default:
