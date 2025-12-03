@@ -81,7 +81,7 @@ class XboxService {
    * Connect account by gamertag (manual connection)
    */
   async connectByGamertag(gamertag) {
-    // Step 1: Search for gamertag to get XUID
+    // Search for gamertag to get XUID and basic info
     const searchResult = await this.searchGamertag(gamertag);
 
     // Search result has a 'people' array with results
@@ -96,15 +96,13 @@ class XboxService {
       throw new BadRequestError('Could not find XUID for this gamertag');
     }
 
-    console.log('[Xbox] Found XUID:', xuid, 'for gamertag:', person.gamertag || person.modernGamertag);
+    console.log('[Xbox] Found XUID:', xuid, 'for gamertag:', person.modernGamertag || person.gamertag);
 
-    // Step 2: Get full profile using XUID
-    const profile = await this.getProfileByXuid(xuid);
-
+    // Return info from search (no need for extra profile call to save API quota)
     return {
       xuid: xuid,
       gamertag: person.modernGamertag || person.gamertag || gamertag,
-      gamerscore: parseInt(person.gamerScore) || profile.gamerScore || 0,
+      gamerscore: parseInt(person.gamerScore) || 0,
     };
   }
 }
