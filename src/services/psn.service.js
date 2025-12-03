@@ -14,10 +14,13 @@ class PSNService {
       const authCode = await exchangeNpssoForCode(npsso);
       const authorization = await exchangeCodeForAccessToken(authCode);
 
+      console.log('[PSN] Authorization object:', JSON.stringify(authorization, null, 2));
+
       return {
         accessToken: authorization.accessToken,
         refreshToken: authorization.refreshToken,
         expiresIn: authorization.expiresIn,
+        accountId: authorization.accountId || 'me', // Use 'me' as fallback
       };
     } catch (error) {
       console.error('[PSN] Error authenticating:', error.message);

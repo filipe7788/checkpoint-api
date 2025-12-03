@@ -39,7 +39,7 @@ class SyncService {
       // For PSN, credentials should contain NPSSO token
       const psnTokens = await psnService.authenticateWithNpsso(credentials.npsso);
       platformData = {
-        platformUserId: credentials.accountId,
+        platformUserId: psnTokens.accountId,
         platformUsername: null,
         accessToken: psnTokens.accessToken,
         refreshToken: psnTokens.refreshToken,
