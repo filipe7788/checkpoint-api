@@ -64,7 +64,8 @@ class XboxService {
       });
 
       const titles = response.data?.titles || [];
-
+      console.log(response);
+      
       return titles.map(title => ({
         externalId: title.titleId || title.pfn,
         name: title.name,
