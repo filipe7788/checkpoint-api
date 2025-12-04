@@ -144,16 +144,12 @@ class SyncService {
         break;
 
       case 'psn':
-        console.log('[Sync] Fetching PSN games...');
-
         // Parse the full authorization object from JSON
         const psnAuth = JSON.parse(connection.accessToken);
-        console.log('[Sync] PSN authorization object keys:', Object.keys(psnAuth));
 
         // Pass the full authorization object to getUserTitles
         // PSN API uses "me" for the authenticated user
         externalGames = await psnService.getOwnedGames(psnAuth, "me");
-        console.log('[Sync] PSN returned', externalGames.length, 'games');
         break;
 
       case 'nintendo':

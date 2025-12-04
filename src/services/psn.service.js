@@ -2,6 +2,7 @@ const {
   exchangeNpssoForCode,
   exchangeCodeForAccessToken,
   getUserTitles,
+  getUserPlayedGames,
   makeUniversalSearch,
 } = require('psn-api');
 const { BadRequestError } = require('../utils/errors');
@@ -14,14 +15,10 @@ class PSNService {
       const authCode = await exchangeNpssoForCode(npsso);
       const authorization = await exchangeCodeForAccessToken(authCode);
 
-      console.log('[PSN] Authorization object:', JSON.stringify(authorization, null, 2));
-
       // Decode idToken to get account_id (sub field)
       const idTokenPayload = JSON.parse(
         Buffer.from(authorization.idToken.split('.')[1], 'base64').toString()
       );
-
-      console.log('[PSN] Account ID from idToken:', idTokenPayload.sub);
 
       // Return full authorization object + accountId
       // getUserTitles needs the complete authorization object, not just accessToken
@@ -37,45 +34,43 @@ class PSNService {
 
   async getOwnedGames(authorization, accountId) {
     try {
-      console.log('[PSN] Fetching games for accountId:', accountId);
-      console.log('[PSN] Authorization accessToken length:', authorization.accessToken?.length);
+      const authPayload = { accessToken: authorization.accessToken };
 
-      // getUserTitles expects: (authorization, accountId, options)
-      // First param is { accessToken }, second is the accountId string
-      const response = await getUserTitles({ accessToken: authorization.accessToken }, accountId);
+      // Fetch played games (broader list than trophy titles)
+      const playedGamesResponse = await getUserPlayedGames(authPayload, accountId);
+      const playedGames = playedGamesResponse.titles || [];
 
-      console.log('[PSN] getUserTitles response:', JSON.stringify(response, null, 2));
+      // Fetch trophy titles to get trophy information
+      const trophyResponse = await getUserTitles(authPayload, accountId);
+      const trophyTitles = trophyResponse.trophyTitles || [];
 
-      const titles = response.trophyTitles || [];
+      // Create a map of trophy data by npCommunicationId
+      const trophyMap = new Map();
+      trophyTitles.forEach(title => {
+        trophyMap.set(title.npCommunicationId, {
+          bronze: title.definedTrophies?.bronze || 0,
+          silver: title.definedTrophies?.silver || 0,
+          gold: title.definedTrophies?.gold || 0,
+          platinum: title.definedTrophies?.platinum || 0,
+        });
+      });
 
-      console.log('[PSN] Found', titles.length, 'games with trophies');
-
-      if (titles.length > 0) {
-        console.log('[PSN] First 3 games:', titles.slice(0, 3).map(t => t.titleName));
-      }
-
-      // Note: PSN API doesn't provide playtime
-      const games = titles.map(title => ({
-        externalId: title.npCommunicationId,
-        name: title.titleName,
-        playtime: 0, // Not available
+      // Combine both lists, using played games as the base
+      const games = playedGames.map(game => ({
+        externalId: game.titleId,
+        name: game.name,
+        playtime: game.playDuration ? Math.floor(parseInt(game.playDuration) / 60) : 0, // Convert seconds to minutes
         platform: 'psn',
         metadata: {
-          trophies: {
-            bronze: title.definedTrophies?.bronze || 0,
-            silver: title.definedTrophies?.silver || 0,
-            gold: title.definedTrophies?.gold || 0,
-            platinum: title.definedTrophies?.platinum || 0,
-          },
+          trophies: trophyMap.get(game.titleId) || null,
+          category: game.category,
+          imageUrl: game.imageUrl,
         },
       }));
 
-      console.log('[PSN] Returning', games.length, 'games');
       return games;
     } catch (error) {
       console.error('[PSN] Error fetching owned games:', error.message);
-      console.error('[PSN] Error stack:', error.stack);
-      console.error('[PSN] Error details:', JSON.stringify(error, null, 2));
       throw new BadRequestError('Failed to fetch PSN library');
     }
   }
