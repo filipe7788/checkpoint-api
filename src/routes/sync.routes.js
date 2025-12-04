@@ -47,6 +47,13 @@ router.delete('/disconnect/:platform', authenticate, syncController.disconnect);
 router.post('/:platform/sync', authenticate, syncLimiter, syncController.sync);
 
 /**
+ * @route   GET /sync/:platform/progress
+ * @desc    Stream sync progress updates (SSE)
+ * @access  Private
+ */
+router.get('/:platform/progress', authenticate, syncController.streamProgress);
+
+/**
  * @route   POST /sync/all
  * @desc    Sync all connected platforms
  * @access  Private

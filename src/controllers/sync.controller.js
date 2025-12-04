@@ -167,6 +167,36 @@ class SyncController {
     }
   }
 
+  async streamProgress(req, res, next) {
+    try {
+      const { platform } = req.params;
+
+      // Set headers for SSE
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      // Create progress callback
+      const onProgress = (data) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+      };
+
+      // Start sync with progress updates
+      try {
+        const result = await syncService.syncPlatform(req.user.id, platform, onProgress);
+
+        // Send final result
+        res.write(`data: ${JSON.stringify({ type: 'complete', ...result })}\n\n`);
+        res.end();
+      } catch (error) {
+        res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+        res.end();
+      }
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async syncAll(req, res, next) {
     try {
       const connections = await syncService.getSyncStatus(req.user.id);

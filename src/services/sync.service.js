@@ -117,7 +117,7 @@ class SyncService {
     return { message: 'Platform disconnected successfully' };
   }
 
-  async syncPlatform(userId, platform) {
+  async syncPlatform(userId, platform, onProgress = null) {
     const connection = await prisma.platformConnection.findUnique({
       where: {
         userId_platform: {
@@ -132,6 +132,11 @@ class SyncService {
     }
 
     try {
+      // Send initial progress
+      if (onProgress) {
+        onProgress({ type: 'status', message: `Fetching games from ${platform}...`, progress: 0 });
+      }
+
       let externalGames = [];
 
       switch (platform) {
@@ -161,6 +166,10 @@ class SyncService {
       }
 
       console.log(`[Sync] Received ${externalGames.length} games from ${platform}`);
+
+      if (onProgress) {
+        onProgress({ type: 'status', message: `Found ${externalGames.length} games. Searching IGDB...`, progress: 10 });
+      }
 
       // Helper function to normalize game names for matching
       const normalizeGameName = (name) => {
@@ -207,8 +216,28 @@ class SyncService {
       let added = 0;
       let updated = 0;
       let failed = 0;
+      const notRecognized = [];
+      const totalGames = externalGames.length;
 
-      for (const externalGame of externalGames) {
+      if (onProgress) {
+        onProgress({ type: 'status', message: `Processing ${totalGames} games...`, progress: 20 });
+      }
+
+      for (let i = 0; i < externalGames.length; i++) {
+        const externalGame = externalGames[i];
+
+        // Send progress update every 10 games or on last game
+        if (onProgress && (i % 10 === 0 || i === totalGames - 1)) {
+          const progress = 20 + Math.floor((i / totalGames) * 70); // 20-90%
+          onProgress({
+            type: 'progress',
+            message: `Processing game ${i + 1}/${totalGames}...`,
+            progress,
+            current: i + 1,
+            total: totalGames,
+          });
+        }
+
         try {
           // Try to find matching IGDB game using normalized names
           const normalizedExternalName = normalizeGameName(externalGame.name);
@@ -227,6 +256,10 @@ class SyncService {
 
           if (!igdbGame) {
             console.log(`[Sync] No IGDB match for "${externalGame.name}" (normalized: "${normalizedExternalName}"), skipping...`);
+            notRecognized.push({
+              originalName: externalGame.name,
+              normalizedName: normalizedExternalName,
+            });
             failed++;
             continue;
           }
@@ -295,6 +328,7 @@ class SyncService {
         updated,
         failed,
         total: externalGames.length,
+        notRecognized, // Lista de jogos não reconhecidos
       };
     } catch (error) {
       // Log error to connection

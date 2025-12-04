@@ -60,7 +60,7 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -82,6 +82,11 @@ app.listen(PORT, () => {
 
   `);
 });
+
+// Increase timeout for long-running sync operations (15 minutes)
+server.timeout = 900000; // 15 minutes in milliseconds
+server.keepAliveTimeout = 910000; // Keep-alive slightly longer than timeout
+server.headersTimeout = 920000; // Headers timeout slightly longer than keep-alive
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
