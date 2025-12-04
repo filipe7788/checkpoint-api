@@ -40,6 +40,8 @@ class PSNService {
       const playedGamesResponse = await getUserPlayedGames(authPayload, accountId);
       const playedGames = playedGamesResponse.titles || [];
 
+      console.log('[PSN] Sample played game:', JSON.stringify(playedGames[0], null, 2));
+
       // Fetch trophy titles to get trophy information
       const trophyResponse = await getUserTitles(authPayload, accountId);
       const trophyTitles = trophyResponse.trophyTitles || [];
