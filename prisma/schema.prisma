@@ -99,17 +99,18 @@ model Game {
 }
 
 model UserGame {
-  id          String     @id @default(uuid())
-  userId      String
-  gameId      String
-  status      GameStatus
-  platform    String
-  playtime    Int?
-  startedAt   DateTime?
-  completedAt DateTime?
-  favorite    Boolean    @default(false)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id           String     @id @default(uuid())
+  userId       String
+  gameId       String
+  status       GameStatus
+  platform     String
+  playtime     Int?
+  lastPlayedAt DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  favorite     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   game   Game    @relation(fields: [gameId], references: [id], onDelete: Cascade)
