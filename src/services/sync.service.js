@@ -304,7 +304,16 @@ class SyncService {
 
         try {
           // Use fuzzy matching to find the best match from available games
-          const igdbGame = this.findBestFuzzyMatch(externalGame.name, allAvailableGames);
+          let igdbGame = this.findBestFuzzyMatch(externalGame.name, allAvailableGames);
+
+          // If no match found, try with simplified name (before colon)
+          if (!igdbGame) {
+            const simplifiedName = externalGame.name.split(':')[0].trim();
+            if (simplifiedName !== externalGame.name) {
+              console.log(`[Sync] Trying simplified name: "${simplifiedName}"`);
+              igdbGame = this.findBestFuzzyMatch(simplifiedName, allAvailableGames);
+            }
+          }
 
           if (!igdbGame) {
             console.log(`[Sync] No match found for "${externalGame.name}", skipping...`);
