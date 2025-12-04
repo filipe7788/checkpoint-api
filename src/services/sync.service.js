@@ -20,18 +20,30 @@ class SyncService {
 
     // Clean the PSN name (remove special chars, normalize spaces)
     const cleanPSN = psnName
-      .toLowerCase()
-      .replace(/[™®©&:\-–—]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+          .toLowerCase()
+          .replace(/\s+e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+          .replace(/\s+and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+          .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
+          .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
+          .replace(/[™®©]/g, '') // Remove trademark symbols
+          .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
+          .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes
+          .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year)\s*edition\s*/gi, '')
+          .replace(/\s+/g, ' '); // Normalize spaces;
 
     igdbGames.forEach(game => {
       // Clean IGDB name the same way
       const cleanIGDB = game.name
-        .toLowerCase()
-        .replace(/[™®©&:\-–—]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
+          .toLowerCase()
+          .replace(/\s+e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+          .replace(/\s+and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+          .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
+          .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
+          .replace(/[™®©]/g, '') // Remove trademark symbols
+          .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
+          .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes
+          .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year)\s*edition\s*/gi, '')
+          .replace(/\s+/g, ' '); // Normalize spaces;
 
       // Calculate Levenshtein distance
       const lev = distance(cleanPSN, cleanIGDB);
