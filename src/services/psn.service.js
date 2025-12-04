@@ -38,9 +38,11 @@ class PSNService {
   async getOwnedGames(authorization, accountId) {
     try {
       console.log('[PSN] Fetching games for accountId:', accountId);
-      console.log('[PSN] Authorization:', JSON.stringify(authorization, null, 2));
+      console.log('[PSN] Authorization accessToken length:', authorization.accessToken?.length);
 
-      const response = await getUserTitles({ accountId }, authorization);
+      // getUserTitles expects: (authorization, accountId, options)
+      // First param is { accessToken }, second is the accountId string
+      const response = await getUserTitles({ accessToken: authorization.accessToken }, accountId);
 
       console.log('[PSN] getUserTitles response:', JSON.stringify(response, null, 2));
 
