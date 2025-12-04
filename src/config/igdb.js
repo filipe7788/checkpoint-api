@@ -58,9 +58,28 @@ class IGDBClient {
     });
   }
 
+  // Normalize game name for better IGDB search results
+  normalizeGameName(name) {
+    return name
+      // Remove platform indicators
+      .replace(/\s*(PS[345]|Xbox|PC|Nintendo|Switch|Steam|Epic)™?\s*/gi, '')
+      // Remove "e PS5", "and Xbox", etc
+      .replace(/\s*e\s+(PS[345]|Xbox|PC|Nintendo|Switch)™?\s*/gi, '')
+      .replace(/\s*and\s+(PS[345]|Xbox|PC|Nintendo|Switch)™?\s*/gi, '')
+      // Remove trademark symbols
+      .replace(/[™®©]/g, '')
+      // Remove edition info (Standard, Deluxe, etc)
+      .replace(/\s*-?\s*(Standard|Deluxe|Ultimate|Gold|Premium|Complete|GOTY|Game of the Year)\s*Edition\s*/gi, '')
+      // Remove extra whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   async searchGames(query, limit = 10) {
+    const normalizedQuery = this.normalizeGameName(query);
+
     const body = `
-      search "${query}";
+      search "${normalizedQuery}";
       fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating;
       limit ${limit};
     `;
