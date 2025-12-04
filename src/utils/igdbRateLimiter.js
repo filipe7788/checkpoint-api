@@ -64,9 +64,9 @@ class IGDBRateLimiter {
         reject(error);
       }
 
-      // Small delay between requests (250ms = 4 req/s)
+      // Minimal delay between requests (100ms for safety, still under 4 req/s limit)
       if (this.queue.length > 0) {
-        await this.sleep(250);
+        await this.sleep(100);
       }
     }
 

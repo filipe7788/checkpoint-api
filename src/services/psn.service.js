@@ -91,6 +91,7 @@ class PSNService {
         externalId: game.titleId,
         name: game.name,
         playtime: this.parsePlayDuration(game.playDuration), // Parse ISO 8601 duration to minutes
+        lastPlayedAt: game.lastPlayedDateTime ? new Date(game.lastPlayedDateTime) : null,
         platform: 'psn',
         metadata: {
           trophies: trophyMap.get(game.titleId) || null,

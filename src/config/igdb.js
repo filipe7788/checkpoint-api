@@ -91,47 +91,64 @@ class IGDBClient {
   }
 
   async searchMultipleGames(gameNames) {
-    // Search games in parallel batches to respect rate limits
-    // IGDB allows 4 requests per second, so we batch in groups of 4
+    // Use IGDB batch search with OR operator to search multiple games in one request
+    // Process in chunks of 50 games per request (IGDB limit is 500 results per request)
     const allResults = [];
-    const batchSize = 4;
+    const chunkSize = 50;
 
-    for (let i = 0; i < gameNames.length; i += batchSize) {
-      const batch = gameNames.slice(i, i + batchSize);
+    console.log(`[IGDB] Searching ${gameNames.length} games in batches of ${chunkSize}...`);
 
-      // Search all games in this batch in parallel
-      const promises = batch.map(name =>
-        this.searchGames(name, 10) // Search top 10 results to get better matches
-          .then(results => {
-            if (results.length === 0) {
-              console.log(`[IGDB] No results for "${name}"`);
-              return null;
-            }
+    for (let i = 0; i < gameNames.length; i += chunkSize) {
+      const chunk = gameNames.slice(i, i + chunkSize);
 
-            console.log(`[IGDB] Found ${results.length} results for "${name}":`, results.map(r => r.name).join(', '));
+      // Create OR query for batch search
+      const searchQuery = chunk.map(name => `"${name}"`).join(' | ');
 
-            // Find the best match - prefer exact name match
-            const exactMatch = results.find(r =>
-              r.name.toLowerCase() === name.toLowerCase()
-            );
+      const body = `
+        search ${searchQuery};
+        fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating;
+        limit 500;
+      `;
 
-            return exactMatch || results[0]; // Return exact match or first result
-          })
-          .catch(error => {
-            console.error(`[IGDB] Failed to search for "${name}":`, error.message);
-            return null;
-          })
-      );
+      try {
+        const results = await this.makeRequest('games', body);
+        console.log(`[IGDB] Batch ${Math.floor(i / chunkSize) + 1}: Found ${results.length} games for ${chunk.length} searches`);
 
-      const results = await Promise.all(promises);
-      allResults.push(...results.filter(r => r !== null));
+        // For each original game name, find the best match
+        chunk.forEach(originalName => {
+          const normalizedOriginal = originalName.toLowerCase();
 
-      // Add delay between batches to respect rate limits (1 second between batches)
-      if (i + batchSize < gameNames.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+          // Find exact match first
+          let match = results.find(r =>
+            r.name.toLowerCase() === normalizedOriginal
+          );
+
+          // If no exact match, find closest match
+          if (!match) {
+            match = results.find(r => {
+              const normalizedResult = r.name.toLowerCase();
+              return normalizedResult.includes(normalizedOriginal) ||
+                     normalizedOriginal.includes(normalizedResult);
+            });
+          }
+
+          if (match) {
+            allResults.push(match);
+          } else {
+            console.log(`[IGDB] No match found for "${originalName}"`);
+          }
+        });
+      } catch (error) {
+        console.error(`[IGDB] Batch search failed:`, error.message);
+      }
+
+      // Small delay between chunks to respect rate limits
+      if (i + chunkSize < gameNames.length) {
+        await new Promise(resolve => setTimeout(resolve, 250));
       }
     }
 
+    console.log(`[IGDB] Total games found: ${allResults.length}/${gameNames.length}`);
     return allResults;
   }
 

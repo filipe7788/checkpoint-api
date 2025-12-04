@@ -199,18 +199,56 @@ class SyncService {
         return normalized;
       });
 
-      console.log(`[Sync] Searching ${gameNames.length} games in IGDB...`);
-      const igdbGames = await igdbClient.searchMultipleGames(gameNames);
-      console.log(`[Sync] IGDB returned ${igdbGames.length} games`);
-
-      // Create a map for faster lookups
-      const igdbGameMap = new Map();
-      igdbGames.forEach(game => {
-        if (game) {
-          const normalized = normalizeGameName(game.name);
-          igdbGameMap.set(normalized, game);
+      // Check if games already exist in our database (cache)
+      console.log(`[Sync] Checking cache for ${gameNames.length} games...`);
+      const cachedGames = await prisma.game.findMany({
+        where: {
+          OR: gameNames.map(name => ({
+            name: { contains: name, mode: 'insensitive' }
+          }))
+        },
+        select: {
+          id: true,
+          igdbId: true,
+          name: true,
+          slug: true,
         }
       });
+
+      console.log(`[Sync] Found ${cachedGames.length} games in cache`);
+
+      // Create map of cached games by normalized name
+      const igdbGameMap = new Map();
+      cachedGames.forEach(game => {
+        const normalized = normalizeGameName(game.name);
+        igdbGameMap.set(normalized, game);
+      });
+
+      // Only search IGDB for games not in cache
+      const uncachedNames = gameNames.filter(name => !igdbGameMap.has(name));
+
+      if (uncachedNames.length > 0) {
+        console.log(`[Sync] Searching ${uncachedNames.length} uncached games in IGDB...`);
+        if (onProgress) {
+          onProgress({ type: 'status', message: `Buscando ${uncachedNames.length} jogos no IGDB...`, progress: 15 });
+        }
+
+        const igdbGames = await igdbClient.searchMultipleGames(uncachedNames);
+        console.log(`[Sync] IGDB returned ${igdbGames.length} games`);
+
+        // Add IGDB results to map
+        igdbGames.forEach(game => {
+          if (game) {
+            const normalized = normalizeGameName(game.name);
+            igdbGameMap.set(normalized, { ...game, fromIGDB: true });
+          }
+        });
+      } else {
+        console.log(`[Sync] All games found in cache! Skipping IGDB search.`);
+        if (onProgress) {
+          onProgress({ type: 'status', message: 'Todos os jogos em cache!', progress: 15 });
+        }
+      }
 
       // Sync games to library
       let added = 0;
@@ -265,7 +303,14 @@ class SyncService {
           }
 
           // Create or find game by IGDB ID
-          let game = await gameService.findOrCreateByIgdbId(igdbGame.id);
+          let game;
+          if (igdbGame.fromIGDB) {
+            // This came from IGDB, needs to be created in DB
+            game = await gameService.findOrCreateByIgdbId(igdbGame.id);
+          } else {
+            // This is already in our DB (from cache)
+            game = igdbGame;
+          }
 
           // Check if already in user's library
           const existingUserGame = await prisma.userGame.findUnique({
@@ -279,17 +324,25 @@ class SyncService {
           });
 
           if (existingUserGame) {
-            // Update playtime if greater
-            if (externalGame.playtime > (existingUserGame.playtime || 0)) {
+            // Update playtime and lastPlayedAt if changed
+            const needsUpdate =
+              externalGame.playtime > (existingUserGame.playtime || 0) ||
+              (externalGame.lastPlayedAt && (!existingUserGame.lastPlayedAt ||
+                new Date(externalGame.lastPlayedAt) > new Date(existingUserGame.lastPlayedAt)));
+
+            if (needsUpdate) {
               await prisma.userGame.update({
                 where: { id: existingUserGame.id },
-                data: { playtime: externalGame.playtime },
+                data: {
+                  playtime: Math.max(externalGame.playtime || 0, existingUserGame.playtime || 0),
+                  lastPlayedAt: externalGame.lastPlayedAt || existingUserGame.lastPlayedAt,
+                },
               });
               updated++;
             }
           } else {
             // Add new game
-            console.log(`[Sync] Adding "${game.name}" to platform: ${platform} (external: ${externalGame.platform || 'undefined'})`);
+            console.log(`[Sync] Adding "${game.name}" to platform: ${platform}`);
             await prisma.userGame.create({
               data: {
                 userId,
@@ -297,6 +350,7 @@ class SyncService {
                 status: externalGame.playtime > 0 ? 'playing' : 'owned',
                 platform,
                 playtime: externalGame.playtime || 0,
+                lastPlayedAt: externalGame.lastPlayedAt || null,
               },
             });
             added++;
