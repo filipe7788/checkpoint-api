@@ -166,11 +166,12 @@ class SyncService {
       const normalizeGameName = (name) => {
         return name
           .toLowerCase()
-          // Remove platform indicators
-          .replace(/\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*/gi, '')
-          // Remove "e PS5", "and Xbox", etc
-          .replace(/\s*e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, '')
-          .replace(/\s*and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, '')
+          // Remove "e PS5", "and Xbox", etc (must come BEFORE general platform removal)
+          .replace(/\s+e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+          .replace(/\s+and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+          // Remove platform indicators at end or beginning
+          .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
+          .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
           .replace(/[™®©]/g, '') // Remove trademark symbols
           .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
           .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes

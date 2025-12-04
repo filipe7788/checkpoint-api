@@ -52,9 +52,24 @@ class PSNService {
     try {
       const authPayload = { accessToken: authorization.accessToken };
 
-      // Fetch played games (broader list than trophy titles)
-      const playedGamesResponse = await getUserPlayedGames(authPayload, accountId);
-      const playedGames = playedGamesResponse.titles || [];
+      // Fetch played games with pagination support
+      let allPlayedGames = [];
+      let offset = 0;
+      const limit = 200; // Max allowed per request
+      let hasMore = true;
+
+      while (hasMore) {
+        const playedGamesResponse = await getUserPlayedGames(authPayload, accountId, { limit, offset });
+        const playedGames = playedGamesResponse.titles || [];
+
+        allPlayedGames = allPlayedGames.concat(playedGames);
+
+        // Check if there are more pages
+        hasMore = playedGames.length === limit;
+        offset += limit;
+
+        console.log(`[PSN] Fetched ${playedGames.length} games (total: ${allPlayedGames.length})`);
+      }
 
       // Fetch trophy titles to get trophy information
       const trophyResponse = await getUserTitles(authPayload, accountId);
@@ -72,7 +87,7 @@ class PSNService {
       });
 
       // Combine both lists, using played games as the base
-      const games = playedGames.map(game => ({
+      const games = allPlayedGames.map(game => ({
         externalId: game.titleId,
         name: game.name,
         playtime: this.parsePlayDuration(game.playDuration), // Parse ISO 8601 duration to minutes
