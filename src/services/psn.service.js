@@ -23,10 +23,10 @@ class PSNService {
 
       console.log('[PSN] Account ID from idToken:', idTokenPayload.sub);
 
+      // Return full authorization object + accountId
+      // getUserTitles needs the complete authorization object, not just accessToken
       return {
-        accessToken: authorization.accessToken,
-        refreshToken: authorization.refreshToken,
-        expiresIn: authorization.expiresIn,
+        ...authorization, // Include all fields: accessToken, tokenType, expiresIn, idToken, refreshToken, refreshTokenExpiresIn, scope
         accountId: idTokenPayload.sub, // Account ID from JWT sub claim
       };
     } catch (error) {

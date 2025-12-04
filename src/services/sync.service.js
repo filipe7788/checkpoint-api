@@ -38,10 +38,12 @@ class SyncService {
     case 'psn':
       // For PSN, credentials should contain NPSSO token
       const psnTokens = await psnService.authenticateWithNpsso(credentials.npsso);
+      // Store the full authorization object as JSON in accessToken field
+      // getUserTitles needs the complete auth object with all fields
       platformData = {
         platformUserId: psnTokens.accountId,
         platformUsername: null,
-        accessToken: psnTokens.accessToken,
+        accessToken: JSON.stringify(psnTokens), // Full auth object as JSON
         refreshToken: psnTokens.refreshToken,
         tokenExpiresAt: new Date(Date.now() + psnTokens.expiresIn * 1000),
       };
@@ -143,13 +145,14 @@ class SyncService {
 
       case 'psn':
         console.log('[Sync] Fetching PSN games...');
-        console.log('[Sync] PSN accessToken length:', connection.accessToken?.length);
 
-        // PSN API uses "me" for the authenticated user, not the accountId
-        externalGames = await psnService.getOwnedGames(
-          { accessToken: connection.accessToken },
-          "me"
-        );
+        // Parse the full authorization object from JSON
+        const psnAuth = JSON.parse(connection.accessToken);
+        console.log('[Sync] PSN authorization object keys:', Object.keys(psnAuth));
+
+        // Pass the full authorization object to getUserTitles
+        // PSN API uses "me" for the authenticated user
+        externalGames = await psnService.getOwnedGames(psnAuth, "me");
         console.log('[Sync] PSN returned', externalGames.length, 'games');
         break;
 
