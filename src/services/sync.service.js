@@ -160,20 +160,38 @@ class SyncService {
         throw new BadRequestError('Unknown platform');
       }
 
+      console.log(`[Sync] Received ${externalGames.length} games from ${platform}`);
+
       // Helper function to normalize game names for matching
       const normalizeGameName = (name) => {
         return name
           .toLowerCase()
+          // Remove platform indicators
+          .replace(/\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*/gi, '')
+          // Remove "e PS5", "and Xbox", etc
+          .replace(/\s*e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, '')
+          .replace(/\s*and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, '')
           .replace(/[™®©]/g, '') // Remove trademark symbols
           .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
           .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes
+          // Remove edition info
+          .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year)\s*edition\s*/gi, '')
           .replace(/\s+/g, ' ') // Normalize spaces
           .trim();
       };
 
-      // Search games in IGDB using batch search
-      const gameNames = externalGames.map(g => g.name);
+      // Normalize game names before searching
+      const gameNames = externalGames.map(g => {
+        const normalized = normalizeGameName(g.name);
+        if (normalized !== g.name.toLowerCase()) {
+          console.log(`[Sync] Normalized "${g.name}" -> "${normalized}"`);
+        }
+        return normalized;
+      });
+
+      console.log(`[Sync] Searching ${gameNames.length} games in IGDB...`);
       const igdbGames = await igdbClient.searchMultipleGames(gameNames);
+      console.log(`[Sync] IGDB returned ${igdbGames.length} games`);
 
       // Create a map for faster lookups
       const igdbGameMap = new Map();

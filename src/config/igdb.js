@@ -78,6 +78,10 @@ class IGDBClient {
   async searchGames(query, limit = 10) {
     const normalizedQuery = this.normalizeGameName(query);
 
+    if (normalizedQuery !== query) {
+      console.log(`[IGDB] Normalized "${query}" -> "${normalizedQuery}"`);
+    }
+
     const body = `
       search "${normalizedQuery}";
       fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating;
