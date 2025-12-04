@@ -90,6 +90,7 @@ class XboxService {
         externalId: title.titleId || title.pfn || title.id,
         name: title.name || title.titleName,
         playtime: 0,
+        lastPlayedAt: title.lastUnlock ? new Date(title.lastUnlock) : null,
         platform: 'xbox',
       }));
     } catch (error) {

@@ -25,6 +25,7 @@ class SteamService {
         externalId: game.appid.toString(),
         name: game.name,
         playtime: Math.round(game.playtime_forever || 0),
+        lastPlayedAt: game.rtime_last_played ? new Date(game.rtime_last_played * 1000) : null,
         platform: 'steam',
         // Steam provides cover images in multiple sizes
         coverUrl: `https://steamcdn-a.akamaihd.net/steam/apps/${game.appid}/library_600x900.jpg`,

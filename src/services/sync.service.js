@@ -7,8 +7,68 @@ const psnService = require('./psn.service');
 const nintendoService = require('./nintendo.service');
 const epicService = require('./epic.service');
 const { NotFoundError, BadRequestError } = require('../utils/errors');
+const { distance } = require('fastest-levenshtein');
 
 class SyncService {
+  /**
+   * Find best fuzzy match using Levenshtein distance
+   * Returns the best matching game if similarity is above threshold (60%)
+   */
+  findBestFuzzyMatch(psnName, igdbGames) {
+    let bestMatch = null;
+    let bestScore = 0;
+
+    // Clean the PSN name (remove special chars, normalize spaces)
+    const cleanPSN = psnName
+      .toLowerCase()
+      .replace(/[™®©&:\-–—]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    igdbGames.forEach(game => {
+      // Clean IGDB name the same way
+      const cleanIGDB = game.name
+        .toLowerCase()
+        .replace(/[™®©&:\-–—]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // Calculate Levenshtein distance
+      const lev = distance(cleanPSN, cleanIGDB);
+      const maxLen = Math.max(cleanPSN.length, cleanIGDB.length);
+
+      // Convert to similarity score (0-1, higher is better)
+      const similarity = 1 - (lev / maxLen);
+
+      if (similarity > bestScore) {
+        bestScore = similarity;
+        bestMatch = game;
+      }
+    });
+
+    // Only return if confidence is above 60% threshold
+    if (bestScore >= 0.6) {
+      console.log(`[Sync] Fuzzy match: "${psnName}" -> "${bestMatch.name}" (${(bestScore * 100).toFixed(1)}% similarity)`);
+      return bestMatch;
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract core title from game name by removing common suffixes and platform indicators
+   */
+  extractCoreTitle(name) {
+    return name
+      // Remove everything after common separators
+      .split(/\s+(-|–|—|:|\|)\s+/)[0]
+      // Remove platform indicators and everything after
+      .replace(/\s+(PS[345]|Xbox|PC|Nintendo|Switch).*$/gi, '')
+      // Remove trademark symbols
+      .replace(/[™®©&]/g, '')
+      .trim();
+  }
+
   async connectPlatform(userId, platform, credentials) {
     let platformData;
 
@@ -171,39 +231,23 @@ class SyncService {
         onProgress({ type: 'status', message: `Found ${externalGames.length} games. Searching IGDB...`, progress: 10 });
       }
 
-      // Helper function to normalize game names for matching
-      const normalizeGameName = (name) => {
-        return name
-          .toLowerCase()
-          // Remove "e PS5", "and Xbox", etc (must come BEFORE general platform removal)
-          .replace(/\s+e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
-          .replace(/\s+and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
-          // Remove platform indicators at end or beginning
-          .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
-          .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
-          .replace(/[™®©]/g, '') // Remove trademark symbols
-          .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
-          .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes
-          // Remove edition info
-          .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year)\s*edition\s*/gi, '')
-          .replace(/\s+/g, ' ') // Normalize spaces
-          .trim();
-      };
-
-      // Normalize game names before searching
-      const gameNames = externalGames.map(g => {
-        const normalized = normalizeGameName(g.name);
-        if (normalized !== g.name.toLowerCase()) {
-          console.log(`[Sync] Normalized "${g.name}" -> "${normalized}"`);
+      // Extract core titles for IGDB search
+      const coreTitles = externalGames.map(g => {
+        const coreTitle = this.extractCoreTitle(g.name);
+        if (coreTitle !== g.name) {
+          console.log(`[Sync] Extracted core title: "${g.name}" -> "${coreTitle}"`);
         }
-        return normalized;
+        return coreTitle;
       });
 
+      // Get unique core titles for searching
+      const uniqueCoreTitles = [...new Set(coreTitles)];
+
       // Check if games already exist in our database (cache)
-      console.log(`[Sync] Checking cache for ${gameNames.length} games...`);
+      console.log(`[Sync] Checking cache for ${uniqueCoreTitles.length} unique games...`);
       const cachedGames = await prisma.game.findMany({
         where: {
-          OR: gameNames.map(name => ({
+          OR: uniqueCoreTitles.map(name => ({
             name: { contains: name, mode: 'insensitive' }
           }))
         },
@@ -217,38 +261,20 @@ class SyncService {
 
       console.log(`[Sync] Found ${cachedGames.length} games in cache`);
 
-      // Create map of cached games by normalized name
-      const igdbGameMap = new Map();
-      cachedGames.forEach(game => {
-        const normalized = normalizeGameName(game.name);
-        igdbGameMap.set(normalized, game);
-      });
-
-      // Only search IGDB for games not in cache
-      const uncachedNames = gameNames.filter(name => !igdbGameMap.has(name));
-
-      if (uncachedNames.length > 0) {
-        console.log(`[Sync] Searching ${uncachedNames.length} uncached games in IGDB...`);
-        if (onProgress) {
-          onProgress({ type: 'status', message: `Buscando ${uncachedNames.length} jogos no IGDB...`, progress: 15 });
-        }
-
-        const igdbGames = await igdbClient.searchMultipleGames(uncachedNames);
-        console.log(`[Sync] IGDB returned ${igdbGames.length} games`);
-
-        // Add IGDB results to map
-        igdbGames.forEach(game => {
-          if (game) {
-            const normalized = normalizeGameName(game.name);
-            igdbGameMap.set(normalized, { ...game, fromIGDB: true });
-          }
-        });
-      } else {
-        console.log(`[Sync] All games found in cache! Skipping IGDB search.`);
-        if (onProgress) {
-          onProgress({ type: 'status', message: 'Todos os jogos em cache!', progress: 15 });
-        }
+      // Search IGDB for all games (we'll use fuzzy matching to find best results)
+      console.log(`[Sync] Searching ${uniqueCoreTitles.length} games in IGDB...`);
+      if (onProgress) {
+        onProgress({ type: 'status', message: `Buscando ${uniqueCoreTitles.length} jogos no IGDB...`, progress: 15 });
       }
+
+      const igdbGames = await igdbClient.searchMultipleGames(uniqueCoreTitles);
+      console.log(`[Sync] IGDB returned ${igdbGames.length} games`);
+
+      // Combine cached games and IGDB results for fuzzy matching
+      const allAvailableGames = [
+        ...cachedGames,
+        ...igdbGames.map(g => ({ ...g, fromIGDB: true }))
+      ];
 
       // Sync games to library
       let added = 0;
@@ -277,26 +303,14 @@ class SyncService {
         }
 
         try {
-          // Try to find matching IGDB game using normalized names
-          const normalizedExternalName = normalizeGameName(externalGame.name);
-          let igdbGame = igdbGameMap.get(normalizedExternalName);
-
-          // If no exact match, try fuzzy matching
-          if (!igdbGame) {
-            for (const [normalizedName, game] of igdbGameMap.entries()) {
-              // Check if one name contains the other (handles cases like "The Witcher 3: Wild Hunt" vs "The Witcher 3")
-              if (normalizedName.includes(normalizedExternalName) || normalizedExternalName.includes(normalizedName)) {
-                igdbGame = game;
-                break;
-              }
-            }
-          }
+          // Use fuzzy matching to find the best match from available games
+          const igdbGame = this.findBestFuzzyMatch(externalGame.name, allAvailableGames);
 
           if (!igdbGame) {
-            console.log(`[Sync] No IGDB match for "${externalGame.name}" (normalized: "${normalizedExternalName}"), skipping...`);
+            console.log(`[Sync] No match found for "${externalGame.name}", skipping...`);
             notRecognized.push({
               originalName: externalGame.name,
-              normalizedName: normalizedExternalName,
+              normalizedName: this.extractCoreTitle(externalGame.name),
             });
             failed++;
             continue;
