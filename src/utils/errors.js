@@ -37,12 +37,6 @@ class ConflictError extends AppError {
   }
 }
 
-class ValidationError extends AppError {
-  constructor(message = 'Validation failed') {
-    super(message, 422);
-  }
-}
-
 module.exports = {
   AppError,
   BadRequestError,
@@ -50,5 +44,4 @@ module.exports = {
   ForbiddenError,
   NotFoundError,
   ConflictError,
-  ValidationError,
 };

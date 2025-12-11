@@ -49,27 +49,6 @@ const PLATFORM_CONFIG = {
   },
 };
 
-function getPlatformConfig(platform) {
-  const config = PLATFORM_CONFIG[platform];
-  if (!config) {
-    throw new Error(`Unknown platform: ${platform}`);
-  }
-  return config;
-}
-
-function isSyncSupported(platform) {
-  const config = PLATFORM_CONFIG[platform];
-  return config && config.syncSupported;
-}
-
-function isPlaytimeSupported(platform) {
-  const config = PLATFORM_CONFIG[platform];
-  return config && config.playtimeSupported;
-}
-
 module.exports = {
   PLATFORM_CONFIG,
-  getPlatformConfig,
-  isSyncSupported,
-  isPlaytimeSupported,
 };

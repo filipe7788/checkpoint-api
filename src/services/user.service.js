@@ -1,5 +1,4 @@
 const prisma = require('../config/database');
-const bcrypt = require('bcrypt');
 const { NotFoundError, ConflictError } = require('../utils/errors');
 
 class UserService {

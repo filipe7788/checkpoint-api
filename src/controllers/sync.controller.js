@@ -227,18 +227,19 @@ class SyncController {
     }
   }
 
-  async getXboxQuota(req, res, next) {
-    try {
-      const quotaInfo = xboxService.getQuotaInfo();
-
-      res.json({
-        success: true,
-        data: quotaInfo,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
+  // TODO: Implement getXboxQuota when OpenXBL provides quota info endpoint
+  // async getXboxQuota(req, res, next) {
+  //   try {
+  //     const quotaInfo = xboxService.getQuotaInfo();
+  //
+  //     res.json({
+  //       success: true,
+  //       data: quotaInfo,
+  //     });
+  //   } catch (error) {
+  //     next(error);
+  //   }
+  // }
 }
 
 module.exports = new SyncController();

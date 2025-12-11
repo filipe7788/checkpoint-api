@@ -79,17 +79,6 @@ class IGDBRateLimiter {
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-
-  /**
-   * Get queue status
-   */
-  getStatus() {
-    return {
-      queueLength: this.queue.length,
-      processing: this.processing,
-      requestCount: this.requestCount,
-    };
-  }
 }
 
 module.exports = new IGDBRateLimiter();

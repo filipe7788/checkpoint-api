@@ -3,7 +3,6 @@ const {
   exchangeCodeForAccessToken,
   getUserTitles,
   getUserPlayedGames,
-  makeUniversalSearch,
 } = require('psn-api');
 const { BadRequestError } = require('../utils/errors');
 

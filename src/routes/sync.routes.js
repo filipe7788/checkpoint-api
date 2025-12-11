@@ -64,7 +64,8 @@ router.post('/all', authenticate, syncLimiter, syncController.syncAll);
  * @route   GET /sync/xbox/quota
  * @desc    Get Xbox API quota information
  * @access  Private
+ * @status  TODO - Not implemented (OpenXBL doesn't provide quota info)
  */
-router.get('/xbox/quota', authenticate, syncController.getXboxQuota);
+// router.get('/xbox/quota', authenticate, syncController.getXboxQuota);
 
 module.exports = router;

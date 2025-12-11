@@ -52,20 +52,6 @@ async function authenticate(req, res, next) {
   }
 }
 
-function authorize(...allowedRoles) {
-  return (req, res, next) => {
-    if (!req.user) {
-      return next(new UnauthorizedError('Authentication required'));
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
-      return next(new ForbiddenError('Insufficient permissions'));
-    }
-
-    next();
-  };
-}
-
 // Optional auth - doesn't fail if no token
 async function optionalAuth(req, res, next) {
   try {
@@ -105,6 +91,5 @@ async function optionalAuth(req, res, next) {
 
 module.exports = {
   authenticate,
-  authorize,
   optionalAuth,
 };
