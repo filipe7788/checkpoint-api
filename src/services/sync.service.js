@@ -11,43 +11,102 @@ const { distance } = require('fastest-levenshtein');
 
 class SyncService {
   /**
-   * Find best fuzzy match using Levenshtein distance
-   * Returns the best matching game if similarity is above threshold (60%)
+   * LAYER 0: Normalize game name
+   * Remove platform indicators, editions, special chars, etc.
    */
-  findBestFuzzyMatch(psnName, igdbGames) {
+  normalizeGameName(name) {
+    return name
+      .toLowerCase()
+      // Remove "& PS5", "e PS5", "and Xbox", etc
+      .replace(/\s+(&|e|and)\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+      // Remove platform indicators at end or beginning
+      .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
+      .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
+      // Remove trademark symbols
+      .replace(/[™®©&]/g, '')
+      // Replace punctuation with spaces
+      .replace(/[:\-–—]/g, ' ')
+      // Remove beta/demo/region suffixes
+      .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '')
+      // Remove edition info
+      .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year|digital)\s*edition\s*/gi, '')
+      // Normalize spaces
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
+   * LAYER 1: Exact match
+   * Check if game name matches exactly (case-insensitive)
+   */
+  findExactMatch(gameName, availableGames) {
+    const normalized = gameName.toLowerCase().trim();
+
+    for (const game of availableGames) {
+      if (game.name.toLowerCase().trim() === normalized) {
+        console.log(`[Sync] ✓ Exact match: "${gameName}" -> "${game.name}"`);
+        return game;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * LAYER 2: Normalized match
+   * Compare normalized versions of names
+   */
+  findNormalizedMatch(gameName, availableGames) {
+    const normalizedSearch = this.normalizeGameName(gameName);
+
+    for (const game of availableGames) {
+      const normalizedGame = this.normalizeGameName(game.name);
+
+      if (normalizedSearch === normalizedGame) {
+        console.log(`[Sync] ✓ Normalized match: "${gameName}" -> "${game.name}"`);
+        return game;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * LAYER 3: IGDB alternative names search
+   * Search IGDB including alternative_names field
+   */
+  async searchIGDBWithAlternativeNames(gameName) {
+    try {
+      const results = await igdbClient.searchGamesWithAlternatives(gameName);
+
+      if (results && results.length > 0) {
+        const topResult = results[0];
+        console.log(`[Sync] ✓ IGDB alias match: "${gameName}" -> "${topResult.name}"`);
+        return topResult;
+      }
+    } catch (error) {
+      console.error(`[Sync] IGDB alternative names search failed:`, error.message);
+    }
+
+    return null;
+  }
+
+  /**
+   * LAYER 4: Fuzzy matching with Levenshtein distance
+   * Returns the best matching game if similarity is above threshold (75%)
+   */
+  findBestFuzzyMatch(gameName, availableGames, threshold = 0.75) {
     let bestMatch = null;
     let bestScore = 0;
 
-    // Clean the PSN name (remove special chars, normalize spaces)
-    const cleanPSN = psnName
-          .toLowerCase()
-          .replace(/\s+e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
-          .replace(/\s+and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
-          .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
-          .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
-          .replace(/[™®©]/g, '') // Remove trademark symbols
-          .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
-          .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes
-          .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year)\s*edition\s*/gi, '')
-          .replace(/\s+/g, ' '); // Normalize spaces;
+    const cleanName = this.normalizeGameName(gameName);
 
-    igdbGames.forEach(game => {
-      // Clean IGDB name the same way
-      const cleanIGDB = game.name
-          .toLowerCase()
-          .replace(/\s+e\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
-          .replace(/\s+and\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
-          .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
-          .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
-          .replace(/[™®©]/g, '') // Remove trademark symbols
-          .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
-          .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '') // Remove suffixes
-          .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year)\s*edition\s*/gi, '')
-          .replace(/\s+/g, ' '); // Normalize spaces;
+    availableGames.forEach(game => {
+      const cleanGame = this.normalizeGameName(game.name);
 
       // Calculate Levenshtein distance
-      const lev = distance(cleanPSN, cleanIGDB);
-      const maxLen = Math.max(cleanPSN.length, cleanIGDB.length);
+      const lev = distance(cleanName, cleanGame);
+      const maxLen = Math.max(cleanName.length, cleanGame.length);
 
       // Convert to similarity score (0-1, higher is better)
       const similarity = 1 - (lev / maxLen);
@@ -58,27 +117,61 @@ class SyncService {
       }
     });
 
-    // Only return if confidence is above 60% threshold
-    if (bestScore >= 0.6) {
-      console.log(`[Sync] Fuzzy match: "${psnName}" -> "${bestMatch.name}" (${(bestScore * 100).toFixed(1)}% similarity)`);
-      return bestMatch;
+    // Only return if confidence is above threshold
+    if (bestScore >= threshold) {
+      console.log(`[Sync] ✓ Fuzzy match: "${gameName}" -> "${bestMatch.name}" (${(bestScore * 100).toFixed(1)}% similarity)`);
+      return { game: bestMatch, score: bestScore };
     }
 
     return null;
   }
 
   /**
-   * Extract core title from game name by removing common suffixes and platform indicators
+   * CASCADING SEARCH: Try all layers in order
+   * Returns { game, confidence, method } or null
    */
-  extractCoreTitle(name) {
-    return name
-      // Remove everything after common separators
-      .split(/\s+(-|–|—|:|\|)\s+/)[0]
-      // Remove platform indicators and everything after
-      .replace(/\s+(PS[345]|Xbox|PC|Nintendo|Switch).*$/gi, '')
-      // Remove trademark symbols
-      .replace(/[™®©&]/g, '')
-      .trim();
+  async findGameMatch(gameName, cachedGames, igdbGames) {
+    const allGames = [...cachedGames, ...igdbGames];
+
+    // Layer 1: Exact match
+    let match = this.findExactMatch(gameName, allGames);
+    if (match) {
+      return { game: match, confidence: 100, method: 'exact' };
+    }
+
+    // Layer 2: Normalized match
+    match = this.findNormalizedMatch(gameName, allGames);
+    if (match) {
+      return { game: match, confidence: 95, method: 'normalized' };
+    }
+
+    // Layer 3: IGDB with alternative names (skip if we already have IGDB results)
+    if (igdbGames.length === 0) {
+      match = await this.searchIGDBWithAlternativeNames(gameName);
+      if (match) {
+        return { game: { ...match, fromIGDB: true }, confidence: 90, method: 'alias' };
+      }
+    }
+
+    // Layer 4: Fuzzy matching
+    const fuzzyResult = this.findBestFuzzyMatch(gameName, allGames);
+    if (fuzzyResult) {
+      return {
+        game: fuzzyResult.game,
+        confidence: Math.round(fuzzyResult.score * 100),
+        method: 'fuzzy'
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract simplified name (text before colon)
+   */
+  extractSimplifiedName(name) {
+    const simplified = name.split(':')[0].trim();
+    return simplified !== name ? simplified : null;
   }
 
   async connectPlatform(userId, platform, credentials) {
@@ -282,12 +375,6 @@ class SyncService {
       const igdbGames = await igdbClient.searchMultipleGames(uniqueCoreTitles);
       console.log(`[Sync] IGDB returned ${igdbGames.length} games`);
 
-      // Combine cached games and IGDB results for fuzzy matching
-      const allAvailableGames = [
-        ...cachedGames,
-        ...igdbGames.map(g => ({ ...g, fromIGDB: true }))
-      ];
-
       // Sync games to library
       let added = 0;
       let updated = 0;
@@ -315,27 +402,40 @@ class SyncService {
         }
 
         try {
-          // Use fuzzy matching to find the best match from available games
-          let igdbGame = this.findBestFuzzyMatch(externalGame.name, allAvailableGames);
+          // Try cascading search with all layers
+          let matchResult = await this.findGameMatch(
+            externalGame.name,
+            cachedGames,
+            igdbGames.map(g => ({ ...g, fromIGDB: true }))
+          );
 
           // If no match found, try with simplified name (before colon)
-          if (!igdbGame) {
-            const simplifiedName = externalGame.name.split(':')[0].trim();
-            if (simplifiedName !== externalGame.name) {
+          if (!matchResult) {
+            const simplifiedName = this.extractSimplifiedName(externalGame.name);
+            if (simplifiedName) {
               console.log(`[Sync] Trying simplified name: "${simplifiedName}"`);
-              igdbGame = this.findBestFuzzyMatch(simplifiedName, allAvailableGames);
+              matchResult = await this.findGameMatch(
+                simplifiedName,
+                cachedGames,
+                igdbGames.map(g => ({ ...g, fromIGDB: true }))
+              );
             }
           }
 
-          if (!igdbGame) {
-            console.log(`[Sync] No match found for "${externalGame.name}", skipping...`);
+          if (!matchResult) {
+            console.log(`[Sync] ✗ No match found for "${externalGame.name}", skipping...`);
             notRecognized.push({
               originalName: externalGame.name,
-              normalizedName: this.extractCoreTitle(externalGame.name),
+              normalizedName: this.normalizeGameName(externalGame.name),
             });
             failed++;
             continue;
           }
+
+          // Log match details
+          console.log(`[Sync] Matched "${externalGame.name}" using ${matchResult.method} (${matchResult.confidence}% confidence)`);
+
+          const igdbGame = matchResult.game;
 
           // Create or find game by IGDB ID
           let game;

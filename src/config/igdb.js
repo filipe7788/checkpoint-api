@@ -90,6 +90,29 @@ class IGDBClient {
     return this.makeRequest('games', body);
   }
 
+  async searchGamesWithAlternatives(gameName) {
+    const normalizedQuery = this.normalizeGameName(gameName);
+
+    const body = `
+      search "${normalizedQuery}";
+      fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating, alternative_names.name;
+      limit 5;
+    `;
+
+    try {
+      const results = await this.makeRequest('games', body);
+
+      if (results && results.length > 0) {
+        console.log(`[IGDB] Found ${results.length} results with alternatives for "${gameName}"`);
+        return results;
+      }
+    } catch (error) {
+      console.error(`[IGDB] Alternative names search failed:`, error.message);
+    }
+
+    return [];
+  }
+
   async searchMultipleGames(gameNames) {
     // Use IGDB batch search with OR operator to search multiple games in one request
     // Process in chunks of 50 games per request (IGDB limit is 500 results per request)
