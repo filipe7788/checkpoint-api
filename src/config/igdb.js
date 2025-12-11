@@ -129,7 +129,7 @@ class IGDBClient {
 
       const body = `
         search ${searchQuery};
-        fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating;
+        fields id, name, slug, summary, cover.url, first_release_date, genres.name, platforms.name, aggregated_rating, alternative_names.name;
         limit 500;
       `;
 

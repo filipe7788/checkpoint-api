@@ -17,6 +17,8 @@ class SyncService {
   normalizeGameName(name) {
     return name
       .toLowerCase()
+      // Remove parentheses with platform indicators: "(PlayStation®5)", "(PS5)", etc
+      .replace(/\s*\([^)]*(playstation|ps[345]|xbox|pc|nintendo|switch|steam|epic)[^)]*\)/gi, '')
       // Remove "& PS5", "e PS5", "and Xbox", etc
       .replace(/\s+(&|e|and)\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
       // Remove platform indicators at end or beginning
