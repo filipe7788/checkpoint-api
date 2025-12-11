@@ -174,6 +174,20 @@ class SyncService {
     return simplified !== name ? simplified : null;
   }
 
+  /**
+   * Extract core title from game name by removing common suffixes and platform indicators
+   */
+  extractCoreTitle(name) {
+    return name
+      // Remove everything after common separators
+      .split(/\s+(-|–|—|:|\|)\s+/)[0]
+      // Remove platform indicators and everything after
+      .replace(/\s+(PS[345]|Xbox|PC|Nintendo|Switch).*$/gi, '')
+      // Remove trademark symbols
+      .replace(/[™®©&]/g, '')
+      .trim();
+  }
+
   async connectPlatform(userId, platform, credentials) {
     let platformData;
 
