@@ -1,4 +1,5 @@
 const { BadRequestError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
 
 class NintendoService {
   // Nintendo Switch Online API is complex and unofficial
@@ -9,16 +10,16 @@ class NintendoService {
     console.warn('[Nintendo] Service is experimental and not fully implemented');
   }
 
-  async authenticate(credentials) {
+  async authenticate(_credentials) {
     // This would require complex OAuth flow with Nintendo
     // Including session token, service token, etc.
-    throw new BadRequestError('Nintendo sync not yet implemented - experimental feature');
+    throw new BadRequestError(ErrorCode.NINTENDO_NOT_IMPLEMENTED);
   }
 
-  async getOwnedGames(accessToken) {
+  async getOwnedGames(_accessToken) {
     // Would fetch from Nintendo Switch Parental Controls API
     // or Nintendo Account API
-    throw new BadRequestError('Nintendo sync not yet implemented - experimental feature');
+    throw new BadRequestError(ErrorCode.NINTENDO_NOT_IMPLEMENTED);
   }
 
   // Placeholder for future implementation

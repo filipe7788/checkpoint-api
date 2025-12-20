@@ -1,11 +1,12 @@
 const prisma = require('../config/database');
 const activityService = require('./activity.service');
 const { NotFoundError, BadRequestError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
 
 class FollowService {
   async followUser(followerId, followingId) {
     if (followerId === followingId) {
-      throw new BadRequestError('Cannot follow yourself');
+      throw new BadRequestError(ErrorCode.CANNOT_FOLLOW_YOURSELF);
     }
 
     // Check if user to follow exists
@@ -14,7 +15,7 @@ class FollowService {
     });
 
     if (!userToFollow) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError(ErrorCode.USER_NOT_FOUND);
     }
 
     // Check if already following
@@ -28,7 +29,7 @@ class FollowService {
     });
 
     if (existing) {
-      throw new BadRequestError('Already following this user');
+      throw new BadRequestError(ErrorCode.ALREADY_FOLLOWING);
     }
 
     // Create follow and update counters
@@ -70,7 +71,7 @@ class FollowService {
     });
 
     if (!follow) {
-      throw new NotFoundError('Not following this user');
+      throw new NotFoundError(ErrorCode.NOT_FOLLOWING);
     }
 
     // Delete follow and update counters

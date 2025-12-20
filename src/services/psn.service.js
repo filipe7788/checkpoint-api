@@ -5,6 +5,8 @@ const {
   getUserPlayedGames,
 } = require('psn-api');
 const { BadRequestError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
+const { Platform } = require('../utils/constants');
 
 class PSNService {
   // PSN requires user to provide their NPSSO token manually
@@ -27,7 +29,7 @@ class PSNService {
       };
     } catch (error) {
       console.error('[PSN] Error authenticating:', error.message);
-      throw new BadRequestError('Invalid NPSSO token or authentication failed');
+      throw new BadRequestError(ErrorCode.PSN_INVALID_NPSSO);
     }
   }
 
@@ -58,7 +60,10 @@ class PSNService {
       let hasMore = true;
 
       while (hasMore) {
-        const playedGamesResponse = await getUserPlayedGames(authPayload, accountId, { limit, offset });
+        const playedGamesResponse = await getUserPlayedGames(authPayload, accountId, {
+          limit,
+          offset,
+        });
         const playedGames = playedGamesResponse.titles || [];
 
         allPlayedGames = allPlayedGames.concat(playedGames);
@@ -66,8 +71,6 @@ class PSNService {
         // Check if there are more pages
         hasMore = playedGames.length === limit;
         offset += limit;
-
-        console.log(`[PSN] Fetched ${playedGames.length} games (total: ${allPlayedGames.length})`);
       }
 
       // Fetch trophy titles to get trophy information
@@ -91,7 +94,7 @@ class PSNService {
         name: game.name,
         playtime: this.parsePlayDuration(game.playDuration), // Parse ISO 8601 duration to minutes
         lastPlayedAt: game.lastPlayedDateTime ? new Date(game.lastPlayedDateTime) : null,
-        platform: 'psn',
+        platform: Platform.PSN,
         metadata: {
           trophies: trophyMap.get(game.titleId) || null,
           category: game.category,
@@ -102,7 +105,7 @@ class PSNService {
       return games;
     } catch (error) {
       console.error('[PSN] Error fetching owned games:', error.message);
-      throw new BadRequestError('Failed to fetch PSN library');
+      throw new BadRequestError(ErrorCode.PSN_LIBRARY_FAILED);
     }
   }
 }

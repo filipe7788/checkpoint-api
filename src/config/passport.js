@@ -2,16 +2,6 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const AppleStrategy = require('passport-apple');
 
-// Serialize user
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-
-// Deserialize user
-passport.deserializeUser((user, done) => {
-  done(null, user);
-});
-
 // Google OAuth Strategy
 passport.use(
   new GoogleStrategy(

@@ -1,5 +1,7 @@
 const prisma = require('../config/database');
 const { NotFoundError, ConflictError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
+const { GameStatus } = require('../utils/constants');
 
 class UserService {
   async getUserProfile(userId) {
@@ -19,7 +21,7 @@ class UserService {
     });
 
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError(ErrorCode.USER_NOT_FOUND);
     }
 
     return user;
@@ -40,7 +42,7 @@ class UserService {
     });
 
     if (!user) {
-      throw new NotFoundError('User not found');
+      throw new NotFoundError(ErrorCode.USER_NOT_FOUND);
     }
 
     // Get game count
@@ -62,7 +64,7 @@ class UserService {
       });
 
       if (existing) {
-        throw new ConflictError('Username already taken');
+        throw new ConflictError(ErrorCode.USERNAME_ALREADY_TAKEN);
       }
     }
 
@@ -92,7 +94,7 @@ class UserService {
         where: { userId },
       }),
       prisma.userGame.count({
-        where: { userId, status: 'completed' },
+        where: { userId, status: GameStatus.COMPLETED },
       }),
       prisma.userGame.aggregate({
         where: { userId },
@@ -137,8 +139,7 @@ class UserService {
       });
     });
 
-    const topGenre = Object.entries(genreCounts)
-      .sort(([, a], [, b]) => b - a)[0];
+    const topGenre = Object.entries(genreCounts).sort(([, a], [, b]) => b - a)[0];
 
     // Get platform statistics
     const platformCounts = await prisma.userGame.groupBy({
@@ -157,19 +158,25 @@ class UserService {
       completedGames,
       totalPlaytime: totalPlaytime._sum.playtime || 0,
       favoriteGames,
-      mostPlayedGame: mostPlayedGame ? {
-        name: mostPlayedGame.game.name,
-        coverUrl: mostPlayedGame.game.coverUrl,
-        playtime: mostPlayedGame.playtime,
-      } : null,
-      topGenre: topGenre ? {
-        name: topGenre[0],
-        count: topGenre[1],
-      } : null,
-      topPlatform: topPlatform ? {
-        name: topPlatform.platform,
-        count: topPlatform._count,
-      } : null,
+      mostPlayedGame: mostPlayedGame
+        ? {
+            name: mostPlayedGame.game.name,
+            coverUrl: mostPlayedGame.game.coverUrl,
+            playtime: mostPlayedGame.playtime,
+          }
+        : null,
+      topGenre: topGenre
+        ? {
+            name: topGenre[0],
+            count: topGenre[1],
+          }
+        : null,
+      topPlatform: topPlatform
+        ? {
+            name: topPlatform.platform,
+            count: topPlatform._count,
+          }
+        : null,
     };
   }
 

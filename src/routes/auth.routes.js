@@ -50,10 +50,13 @@ router.post('/refresh', validate(schemas.refreshToken), authController.refreshTo
  * @desc    Initiate Google OAuth login
  * @access  Public
  */
-router.get('/google', passport.authenticate('google', {
-  session: false,
-  prompt: 'select_account'
-}));
+router.get(
+  '/google',
+  passport.authenticate('google', {
+    session: false,
+    prompt: 'select_account',
+  })
+);
 
 /**
  * @route   GET /auth/google/callback

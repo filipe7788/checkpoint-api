@@ -10,7 +10,13 @@ const { createLimiter } = require('../middleware/rateLimiter');
  * @desc    Add game to library
  * @access  Private
  */
-router.post('/', authenticate, createLimiter, validate(schemas.addToLibrary), libraryController.add);
+router.post(
+  '/',
+  authenticate,
+  createLimiter,
+  validate(schemas.addToLibrary),
+  libraryController.add
+);
 
 /**
  * @route   GET /library

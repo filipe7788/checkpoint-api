@@ -24,10 +24,7 @@ class ActivityController {
     try {
       const { limit = 20 } = req.query;
 
-      const nowPlaying = await activityService.getNowPlaying(
-        req.user.id,
-        parseInt(limit)
-      );
+      const nowPlaying = await activityService.getNowPlaying(req.user.id, parseInt(limit));
 
       res.json({
         success: true,

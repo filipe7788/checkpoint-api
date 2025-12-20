@@ -16,12 +16,10 @@ enum UserRole {
 }
 
 enum GameStatus {
-  owned
   playing
   completed
-  want_to_play
   dropped
-  backlog
+  want_to_play
 }
 
 enum Platform {

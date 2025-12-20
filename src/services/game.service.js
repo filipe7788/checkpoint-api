@@ -1,6 +1,7 @@
 const igdbClient = require('../config/igdb');
 const prisma = require('../config/database');
 const { NotFoundError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
 
 class GameService {
   async searchGames(query, limit = 10) {
@@ -22,7 +23,7 @@ class GameService {
     });
 
     if (!game) {
-      throw new NotFoundError('Game not found');
+      throw new NotFoundError(ErrorCode.GAME_NOT_FOUND);
     }
 
     return game;
@@ -38,7 +39,7 @@ class GameService {
     if (!game) {
       const igdbGame = await igdbClient.getGameById(igdbId);
       if (!igdbGame) {
-        throw new NotFoundError('Game not found');
+        throw new NotFoundError(ErrorCode.GAME_NOT_FOUND);
       }
       game = await this.cacheGame(igdbGame);
     }

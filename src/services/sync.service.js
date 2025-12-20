@@ -4,10 +4,10 @@ const igdbClient = require('../config/igdb');
 const steamService = require('./steam.service');
 const xboxService = require('./xbox.service');
 const psnService = require('./psn.service');
-const nintendoService = require('./nintendo.service');
-const epicService = require('./epic.service');
 const { NotFoundError, BadRequestError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
 const { distance } = require('fastest-levenshtein');
+const { GameStatus, Platform, SuccessMessages } = require('../utils/constants');
 
 class SyncService {
   /**
@@ -15,26 +15,31 @@ class SyncService {
    * Remove platform indicators, editions, special chars, etc.
    */
   normalizeGameName(name) {
-    return name
-      .toLowerCase()
-      // Remove parentheses with platform indicators: "(PlayStation®5)", "(PS5)", etc
-      .replace(/\s*\([^)]*(playstation|ps[345]|xbox|pc|nintendo|switch|steam|epic)[^)]*\)/gi, '')
-      // Remove "& PS5", "e PS5", "and Xbox", etc
-      .replace(/\s+(&|e|and)\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
-      // Remove platform indicators at end or beginning
-      .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
-      .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
-      // Remove trademark symbols
-      .replace(/[™®©&]/g, '')
-      // Replace punctuation with spaces
-      .replace(/[:\-–—]/g, ' ')
-      // Remove beta/demo/region suffixes
-      .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '')
-      // Remove edition info
-      .replace(/\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year|digital)\s*edition\s*/gi, '')
-      // Normalize spaces
-      .replace(/\s+/g, ' ')
-      .trim();
+    return (
+      name
+        .toLowerCase()
+        // Remove parentheses with platform indicators: "(PlayStation®5)", "(PS5)", etc
+        .replace(/\s*\([^)]*(playstation|ps[345]|xbox|pc|nintendo|switch|steam|epic)[^)]*\)/gi, '')
+        // Remove "& PS5", "e PS5", "and Xbox", etc
+        .replace(/\s+(&|e|and)\s+(ps[345]|xbox|pc|nintendo|switch)™?\s*/gi, ' ')
+        // Remove platform indicators at end or beginning
+        .replace(/\s+(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s*$/gi, '')
+        .replace(/^\s*(ps[345]|xbox|pc|nintendo|switch|steam|epic)™?\s+/gi, '')
+        // Remove trademark symbols
+        .replace(/[™®©&]/g, '')
+        // Replace punctuation with spaces
+        .replace(/[:\-–—]/g, ' ')
+        // Remove beta/demo/region suffixes
+        .replace(/\s+(open beta|beta|alpha|demo|early access|na|eu|us|playtest)$/gi, '')
+        // Remove edition info
+        .replace(
+          /\s*-?\s*(standard|deluxe|ultimate|gold|premium|complete|goty|game of the year|digital)\s*edition\s*/gi,
+          ''
+        )
+        // Normalize spaces
+        .replace(/\s+/g, ' ')
+        .trim()
+    );
   }
 
   /**
@@ -46,7 +51,6 @@ class SyncService {
 
     for (const game of availableGames) {
       if (game.name.toLowerCase().trim() === normalized) {
-        console.log(`[Sync] ✓ Exact match: "${gameName}" -> "${game.name}"`);
         return game;
       }
     }
@@ -65,7 +69,6 @@ class SyncService {
       const normalizedGame = this.normalizeGameName(game.name);
 
       if (normalizedSearch === normalizedGame) {
-        console.log(`[Sync] ✓ Normalized match: "${gameName}" -> "${game.name}"`);
         return game;
       }
     }
@@ -83,7 +86,6 @@ class SyncService {
 
       if (results && results.length > 0) {
         const topResult = results[0];
-        console.log(`[Sync] ✓ IGDB alias match: "${gameName}" -> "${topResult.name}"`);
         return topResult;
       }
     } catch (error) {
@@ -111,7 +113,7 @@ class SyncService {
       const maxLen = Math.max(cleanName.length, cleanGame.length);
 
       // Convert to similarity score (0-1, higher is better)
-      const similarity = 1 - (lev / maxLen);
+      const similarity = 1 - lev / maxLen;
 
       if (similarity > bestScore) {
         bestScore = similarity;
@@ -121,7 +123,6 @@ class SyncService {
 
     // Only return if confidence is above threshold
     if (bestScore >= threshold) {
-      console.log(`[Sync] ✓ Fuzzy match: "${gameName}" -> "${bestMatch.name}" (${(bestScore * 100).toFixed(1)}% similarity)`);
       return { game: bestMatch, score: bestScore };
     }
 
@@ -161,7 +162,7 @@ class SyncService {
       return {
         game: fuzzyResult.game,
         confidence: Math.round(fuzzyResult.score * 100),
-        method: 'fuzzy'
+        method: 'fuzzy',
       };
     }
 
@@ -180,62 +181,72 @@ class SyncService {
    * Extract core title from game name by removing common suffixes and platform indicators
    */
   extractCoreTitle(name) {
-    return name
-      // Remove everything after common separators
-      .split(/\s+(-|–|—|:|\|)\s+/)[0]
-      // Remove platform indicators and everything after
-      .replace(/\s+(PS[345]|Xbox|PC|Nintendo|Switch).*$/gi, '')
-      // Remove trademark symbols
-      .replace(/[™®©&]/g, '')
-      .trim();
+    return (
+      name
+        // Remove everything after common separators
+        .split(/\s+(-|–|—|:|\|)\s+/)[0]
+        // Remove platform indicators and everything after
+        .replace(/\s+(PS[345]|Xbox|PC|Nintendo|Switch).*$/gi, '')
+        // Remove trademark symbols
+        .replace(/[™®©&]/g, '')
+        .trim()
+    );
   }
 
   async connectPlatform(userId, platform, credentials) {
     let platformData;
 
     switch (platform) {
-    case 'steam':
-      // For Steam, credentials should contain steamId from OpenID
-      platformData = {
-        platformUserId: credentials.steamId,
-        platformUsername: null,
-        accessToken: 'steam_openid', // Steam doesn't use tokens
-        refreshToken: null,
-      };
-      break;
+      case Platform.STEAM: {
+        // For Steam, credentials should contain steamId (manual input)
+        if (!credentials.steamId) {
+          throw new BadRequestError(ErrorCode.INVALID_INPUT);
+        }
+        platformData = {
+          platformUserId: credentials.steamId,
+          platformUsername: null,
+          accessToken: null,
+          refreshToken: null,
+        };
+        break;
+      }
 
-    case 'xbox':
-      // For Xbox, credentials should contain gamertag (manual connection)
-      const xboxProfile = await xboxService.connectByGamertag(credentials.gamertag);
-      platformData = {
-        platformUserId: xboxProfile.xuid,
-        platformUsername: xboxProfile.gamertag,
-        accessToken: process.env.OPENXBL_API_KEY, // OpenXBL uses server API key
-        refreshToken: null,
-        tokenExpiresAt: null,
-      };
-      break;
+      case Platform.XBOX: {
+        // For Xbox, credentials should contain gamertag (manual connection)
+        const xboxProfile = await xboxService.connectByGamertag(credentials.gamertag);
+        platformData = {
+          platformUserId: xboxProfile.xuid,
+          platformUsername: xboxProfile.gamertag,
+          accessToken: process.env.OPENXBL_API_KEY, // OpenXBL uses server API key
+          refreshToken: null,
+          tokenExpiresAt: null,
+        };
+        break;
+      }
 
-    case 'psn':
-      // For PSN, credentials should contain NPSSO token
-      const psnTokens = await psnService.authenticateWithNpsso(credentials.npsso);
-      // Store the full authorization object as JSON in accessToken field
-      // getUserTitles needs the complete auth object with all fields
-      platformData = {
-        platformUserId: psnTokens.accountId,
-        platformUsername: null,
-        accessToken: JSON.stringify(psnTokens), // Full auth object as JSON
-        refreshToken: psnTokens.refreshToken,
-        tokenExpiresAt: new Date(Date.now() + psnTokens.expiresIn * 1000),
-      };
-      break;
+      case Platform.PSN: {
+        // For PSN, credentials should contain NPSSO token
+        const psnTokens = await psnService.authenticateWithNpsso(credentials.npsso);
+        // Store the full authorization object as JSON in accessToken field
+        // getUserTitles needs the complete auth object with all fields
+        platformData = {
+          platformUserId: psnTokens.accountId,
+          platformUsername: null,
+          accessToken: JSON.stringify(psnTokens), // Full auth object as JSON
+          refreshToken: psnTokens.refreshToken,
+          tokenExpiresAt: new Date(Date.now() + psnTokens.expiresIn * 1000),
+        };
+        break;
+      }
 
-    case 'nintendo':
-    case 'epic':
-      throw new BadRequestError(`${platform} sync not yet implemented`);
+      case Platform.NINTENDO:
+        throw new BadRequestError(ErrorCode.NINTENDO_NOT_IMPLEMENTED);
 
-    default:
-      throw new BadRequestError('Unknown platform');
+      case Platform.EPIC:
+        throw new BadRequestError(ErrorCode.EPIC_NOT_IMPLEMENTED);
+
+      default:
+        throw new BadRequestError(ErrorCode.PLATFORM_UNKNOWN);
     }
 
     // Create or update platform connection
@@ -274,7 +285,7 @@ class SyncService {
     });
 
     if (!connection) {
-      throw new NotFoundError('Platform not connected');
+      throw new NotFoundError(ErrorCode.PLATFORM_NOT_CONNECTED);
     }
 
     // Delete all games from this platform in user's library
@@ -295,7 +306,7 @@ class SyncService {
       },
     });
 
-    return { message: 'Platform disconnected successfully' };
+    return { message: SuccessMessages.PLATFORM_DISCONNECTED };
   }
 
   async syncPlatform(userId, platform, onProgress = null) {
@@ -309,7 +320,7 @@ class SyncService {
     });
 
     if (!connection) {
-      throw new NotFoundError('Platform not connected');
+      throw new NotFoundError(ErrorCode.PLATFORM_NOT_CONNECTED);
     }
 
     try {
@@ -321,71 +332,70 @@ class SyncService {
       let externalGames = [];
 
       switch (platform) {
-      case 'steam':
-        externalGames = await steamService.getOwnedGames(connection.platformUserId);
-        break;
+        case Platform.STEAM:
+          externalGames = await steamService.getOwnedGames(connection.platformUserId);
+          break;
 
-      case 'xbox':
-        externalGames = await xboxService.getOwnedGames(connection.platformUserId);
-        break;
+        case Platform.XBOX:
+          externalGames = await xboxService.getOwnedGames(connection.platformUserId);
+          break;
 
-      case 'psn':
-        // Parse the full authorization object from JSON
-        const psnAuth = JSON.parse(connection.accessToken);
+        case Platform.PSN: {
+          // Parse the full authorization object from JSON
+          const psnAuth = JSON.parse(connection.accessToken);
 
-        // Pass the full authorization object to getUserTitles
-        // PSN API uses "me" for the authenticated user
-        externalGames = await psnService.getOwnedGames(psnAuth, "me");
-        break;
+          // Pass the full authorization object to getUserTitles
+          // PSN API uses "me" for the authenticated user
+          externalGames = await psnService.getOwnedGames(psnAuth, 'me');
+          break;
+        }
 
-      case 'nintendo':
-      case 'epic':
-        throw new BadRequestError(`${platform} sync not yet implemented`);
+        case Platform.NINTENDO:
+          throw new BadRequestError(ErrorCode.NINTENDO_NOT_IMPLEMENTED);
 
-      default:
-        throw new BadRequestError('Unknown platform');
+        case Platform.EPIC:
+          throw new BadRequestError(ErrorCode.EPIC_NOT_IMPLEMENTED);
+
+        default:
+          throw new BadRequestError(ErrorCode.PLATFORM_UNKNOWN);
       }
 
-      console.log(`[Sync] Received ${externalGames.length} games from ${platform}`);
-
       if (onProgress) {
-        onProgress({ type: 'status', message: `Found ${externalGames.length} games. Searching IGDB...`, progress: 10 });
+        onProgress({
+          type: 'status',
+          message: `Found ${externalGames.length} games. Searching IGDB...`,
+          progress: 10,
+        });
       }
 
       // Extract core titles for IGDB search
-      const coreTitles = externalGames.map(g => {
-        const coreTitle = this.extractCoreTitle(g.name);
-        if (coreTitle !== g.name) {
-          console.log(`[Sync] Extracted core title: "${g.name}" -> "${coreTitle}"`);
-        }
-        return coreTitle;
-      });
+      const coreTitles = externalGames.map(g => this.extractCoreTitle(g.name));
 
       // Get unique core titles for searching
       const uniqueCoreTitles = [...new Set(coreTitles)];
 
       // Check if games already exist in our database (cache)
-      console.log(`[Sync] Checking cache for ${uniqueCoreTitles.length} unique games...`);
       const cachedGames = await prisma.game.findMany({
         where: {
           OR: uniqueCoreTitles.map(name => ({
-            name: { contains: name, mode: 'insensitive' }
-          }))
+            name: { contains: name, mode: 'insensitive' },
+          })),
         },
         select: {
           id: true,
           igdbId: true,
           name: true,
           slug: true,
-        }
+        },
       });
 
-      console.log(`[Sync] Found ${cachedGames.length} games in cache`);
-
       // Search IGDB for all games (we'll use fuzzy matching to find best results)
-      console.log(`[Sync] Searching ${uniqueCoreTitles.length} games in IGDB...`);
       if (onProgress) {
-        onProgress({ type: 'status', message: `Buscando ${uniqueCoreTitles.length} jogos no IGDB...`, progress: 15 });
+        onProgress({
+          type: 'status',
+          message: `Buscando ${uniqueCoreTitles.length} jogos no IGDB...`,
+          progress: 15,
+        });
       }
 
       const igdbGames = await igdbClient.searchMultipleGames(uniqueCoreTitles);
@@ -429,7 +439,6 @@ class SyncService {
           if (!matchResult) {
             const simplifiedName = this.extractSimplifiedName(externalGame.name);
             if (simplifiedName) {
-              console.log(`[Sync] Trying simplified name: "${simplifiedName}"`);
               matchResult = await this.findGameMatch(
                 simplifiedName,
                 cachedGames,
@@ -439,7 +448,6 @@ class SyncService {
           }
 
           if (!matchResult) {
-            console.log(`[Sync] ✗ No match found for "${externalGame.name}", skipping...`);
             notRecognized.push({
               originalName: externalGame.name,
               normalizedName: this.normalizeGameName(externalGame.name),
@@ -447,9 +455,6 @@ class SyncService {
             failed++;
             continue;
           }
-
-          // Log match details
-          console.log(`[Sync] Matched "${externalGame.name}" using ${matchResult.method} (${matchResult.confidence}% confidence)`);
 
           const igdbGame = matchResult.game;
 
@@ -478,8 +483,9 @@ class SyncService {
             // Update playtime and lastPlayedAt if changed
             const needsUpdate =
               externalGame.playtime > (existingUserGame.playtime || 0) ||
-              (externalGame.lastPlayedAt && (!existingUserGame.lastPlayedAt ||
-                new Date(externalGame.lastPlayedAt) > new Date(existingUserGame.lastPlayedAt)));
+              (externalGame.lastPlayedAt &&
+                (!existingUserGame.lastPlayedAt ||
+                  new Date(externalGame.lastPlayedAt) > new Date(existingUserGame.lastPlayedAt)));
 
             if (needsUpdate) {
               await prisma.userGame.update({
@@ -493,12 +499,11 @@ class SyncService {
             }
           } else {
             // Add new game
-            console.log(`[Sync] Adding "${game.name}" to platform: ${platform}`);
             await prisma.userGame.create({
               data: {
                 userId,
                 gameId: game.id,
-                status: externalGame.playtime > 0 ? 'playing' : 'owned',
+                status: externalGame.playtime > 0 ? GameStatus.PLAYING : GameStatus.WANT_TO_PLAY,
                 platform,
                 playtime: externalGame.playtime || 0,
                 lastPlayedAt: externalGame.lastPlayedAt || null,

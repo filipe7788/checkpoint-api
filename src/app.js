@@ -17,10 +17,12 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // CORS configuration
-app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || '*',
+    credentials: true,
+  })
+);
 
 // Body parsers
 app.use(express.json());
@@ -33,12 +35,7 @@ app.use(passport.initialize());
 app.use(generalLimiter);
 
 // Request logging in development
-if (process.env.NODE_ENV === 'development') {
-  app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-    next();
-  });
-}
+// Removed - use a proper logger instead if needed
 
 // API routes
 app.use('/api', routes);
@@ -64,12 +61,12 @@ const server = app.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║   ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗██████╗         ║
-║  ██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝██╔══██╗        ║
-║  ██║     ███████║█████╗  ██║     █████╔╝ ██████╔╝        ║
-║  ██║     ██╔══██║██╔══╝  ██║     ██╔═██╗ ██╔═══╝         ║
-║  ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗██║             ║
-║   ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝             ║
+║       ██████╗██╗  ██╗███████╗ ██████╗██╗  ██╗██████╗      ║
+║     ██╔════╝██║  ██║██╔════╝██╔════╝██║ ██╔╝██╔══██╗      ║
+║     ██║     ███████║█████╗  ██║     █████╔╝ ██████╔╝      ║
+║     ██║     ██╔══██║██╔══╝  ██║     ██╔═██╗ ██╔═══╝       ║
+║     ╚██████╗██║  ██║███████╗╚██████╗██║  ██╗██║           ║
+║      ╚═════╝╚═╝  ╚═╝╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝           ║
 ║                                                           ║
 ║              Game Library & Social Platform               ║
 ║                                                           ║

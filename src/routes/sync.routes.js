@@ -12,23 +12,12 @@ const { syncLimiter } = require('../middleware/rateLimiter');
 router.get('/status', authenticate, syncController.getStatus);
 
 /**
- * @route   POST /sync/connect/:platform
- * @desc    Initiate platform connection (returns auth URL)
- * @access  Private
- */
-router.post('/connect/:platform', authenticate, syncController.initiateConnection);
-
-/**
- * @route   GET /sync/callback/:platform
- * @desc    OAuth callback for platform authentication
- * @access  Public (handles its own auth via state)
- */
-router.get('/callback/:platform', syncController.handleCallback);
-
-/**
  * @route   POST /sync/:platform
- * @desc    Manual platform connection (for PSN, etc)
+ * @desc    Connect platform with manual credentials
  * @access  Private
+ * @body    Steam: { steamId }
+ *          Xbox: { gamertag }
+ *          PSN: { npsso, accountId }
  */
 router.post('/:platform', authenticate, syncController.connectManual);
 

@@ -10,7 +10,13 @@ const { createLimiter } = require('../middleware/rateLimiter');
  * @desc    Create a review
  * @access  Private
  */
-router.post('/', authenticate, createLimiter, validate(schemas.createReview), reviewController.create);
+router.post(
+  '/',
+  authenticate,
+  createLimiter,
+  validate(schemas.createReview),
+  reviewController.create
+);
 
 /**
  * @route   PUT /reviews/:id

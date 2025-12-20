@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { UnauthorizedError, ForbiddenError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
 const prisma = require('../config/database');
 
 async function authenticate(req, res, next) {
@@ -7,7 +8,7 @@ async function authenticate(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new UnauthorizedError('No token provided');
+      throw new UnauthorizedError(ErrorCode.AUTH_NO_TOKEN_PROVIDED);
     }
 
     const token = authHeader.substring(7);
@@ -25,25 +26,25 @@ async function authenticate(req, res, next) {
           role: true,
           isBanned: true,
           banReason: true,
-        }
+        },
       });
 
       if (!user) {
-        throw new UnauthorizedError('User not found');
+        throw new UnauthorizedError(ErrorCode.AUTH_USER_NOT_FOUND);
       }
 
       if (user.isBanned) {
-        throw new ForbiddenError(`Account banned: ${user.banReason || 'Violation of terms'}`);
+        throw new ForbiddenError(ErrorCode.AUTH_ACCOUNT_BANNED, { reason: user.banReason });
       }
 
       req.user = user;
       next();
     } catch (error) {
       if (error.name === 'JsonWebTokenError') {
-        throw new UnauthorizedError('Invalid token');
+        throw new UnauthorizedError(ErrorCode.AUTH_INVALID_TOKEN);
       }
       if (error.name === 'TokenExpiredError') {
-        throw new UnauthorizedError('Token expired');
+        throw new UnauthorizedError(ErrorCode.AUTH_TOKEN_EXPIRED);
       }
       throw error;
     }
@@ -73,7 +74,7 @@ async function optionalAuth(req, res, next) {
           username: true,
           role: true,
           isBanned: true,
-        }
+        },
       });
 
       if (user && !user.isBanned) {

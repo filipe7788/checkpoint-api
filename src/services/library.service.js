@@ -1,7 +1,9 @@
 const prisma = require('../config/database');
 const gameService = require('./game.service');
 const activityService = require('./activity.service');
-const { NotFoundError, ConflictError, BadRequestError } = require('../utils/errors');
+const { NotFoundError, ConflictError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
+const { GameStatus } = require('../utils/constants');
 
 class LibraryService {
   async addToLibrary(userId, data) {
@@ -22,7 +24,7 @@ class LibraryService {
     });
 
     if (existing) {
-      throw new ConflictError('Game already in library for this platform');
+      throw new ConflictError(ErrorCode.GAME_ALREADY_IN_LIBRARY);
     }
 
     // Create library entry
@@ -43,13 +45,13 @@ class LibraryService {
     });
 
     // Create activity if status is playing or completed
-    if (status === 'playing') {
+    if (status === GameStatus.PLAYING) {
       await activityService.createActivity({
         userId,
         type: 'started_playing',
         targetGameId: game.id,
       });
-    } else if (status === 'completed') {
+    } else if (status === GameStatus.COMPLETED) {
       await activityService.createActivity({
         userId,
         type: 'completed',
@@ -136,7 +138,7 @@ class LibraryService {
     });
 
     if (!userGame) {
-      throw new NotFoundError('Game not found in library');
+      throw new NotFoundError(ErrorCode.GAME_NOT_IN_LIBRARY);
     }
 
     return userGame;
@@ -152,7 +154,7 @@ class LibraryService {
     });
 
     if (!existing) {
-      throw new NotFoundError('Game not found in library');
+      throw new NotFoundError(ErrorCode.GAME_NOT_IN_LIBRARY);
     }
 
     // Track status change for activities
@@ -173,13 +175,16 @@ class LibraryService {
 
     // Create activity for status changes
     if (statusChanged) {
-      if (updates.status === 'playing' && previousStatus !== 'playing') {
+      if (updates.status === GameStatus.PLAYING && previousStatus !== GameStatus.PLAYING) {
         await activityService.createActivity({
           userId,
           type: 'started_playing',
           targetGameId: existing.game.id,
         });
-      } else if (updates.status === 'completed' && previousStatus !== 'completed') {
+      } else if (
+        updates.status === GameStatus.COMPLETED &&
+        previousStatus !== GameStatus.COMPLETED
+      ) {
         await activityService.createActivity({
           userId,
           type: 'completed',
@@ -200,7 +205,7 @@ class LibraryService {
     });
 
     if (!existing) {
-      throw new NotFoundError('Game not found in library');
+      throw new NotFoundError(ErrorCode.GAME_NOT_IN_LIBRARY);
     }
 
     await prisma.userGame.delete({

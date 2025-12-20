@@ -1,5 +1,7 @@
 const axios = require('axios');
 const { BadRequestError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
+const { XboxAPI, Platform } = require('../utils/constants');
 
 /**
  * Xbox Service using OpenXBL API
@@ -8,7 +10,7 @@ const { BadRequestError } = require('../utils/errors');
 class XboxService {
   constructor() {
     this.apiKey = process.env.OPENXBL_API_KEY;
-    this.baseUrl = 'https://xbl.io/api/v2';
+    this.baseUrl = XboxAPI.BASE_URL;
 
     if (!this.apiKey) {
       console.warn('[Xbox] OPENXBL_API_KEY not configured in .env');
@@ -20,16 +22,19 @@ class XboxService {
    */
   async searchGamertag(gamertag) {
     try {
-      const response = await axios.get(`${this.baseUrl}/search/${encodeURIComponent(gamertag)}`, {
-        headers: {
-          'X-Authorization': this.apiKey,
-          'Accept': 'application/json',
-        },
-      });
+      const response = await axios.get(
+        `${this.baseUrl}${XboxAPI.SEARCH}/${encodeURIComponent(gamertag)}`,
+        {
+          headers: {
+            'X-Authorization': this.apiKey,
+            Accept: 'application/json',
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       console.error('[Xbox] Error searching gamertag:', error.response?.data || error.message);
-      throw new BadRequestError('Gamertag not found. Please check the spelling.');
+      throw new BadRequestError(ErrorCode.XBOX_GAMERTAG_NOT_FOUND);
     }
   }
 
@@ -38,16 +43,16 @@ class XboxService {
    */
   async getProfileByXuid(xuid) {
     try {
-      const response = await axios.get(`${this.baseUrl}/account/${xuid}`, {
+      const response = await axios.get(`${this.baseUrl}${XboxAPI.ACCOUNT}/${xuid}`, {
         headers: {
           'X-Authorization': this.apiKey,
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
       return response.data;
     } catch (error) {
       console.error('[Xbox] Error fetching profile:', error.response?.data || error.message);
-      throw new BadRequestError('Failed to fetch Xbox profile');
+      throw new BadRequestError(ErrorCode.XBOX_PROFILE_FAILED);
     }
   }
 
@@ -57,30 +62,30 @@ class XboxService {
   async getOwnedGames(xuid) {
     try {
       // Try title history first
-      const historyResponse = await axios.get(`${this.baseUrl}/player/titleHistory/${xuid}`, {
+      const historyResponse = await axios.get(`${this.baseUrl}${XboxAPI.TITLE_HISTORY}/${xuid}`, {
         headers: {
           'X-Authorization': this.apiKey,
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
       });
 
       let titles = historyResponse.data?.titles || [];
-      console.log('[Xbox] Title history count:', titles.length);
 
       // If title history is empty, try achievements endpoint as fallback
       if (titles.length === 0) {
-        console.log('[Xbox] Title history empty, trying achievements...');
         try {
-          const achievementsResponse = await axios.get(`${this.baseUrl}/achievements/player/${xuid}`, {
-            headers: {
-              'X-Authorization': this.apiKey,
-              'Accept': 'application/json',
-            },
-          });
+          const achievementsResponse = await axios.get(
+            `${this.baseUrl}${XboxAPI.ACHIEVEMENTS}/${xuid}`,
+            {
+              headers: {
+                'X-Authorization': this.apiKey,
+                Accept: 'application/json',
+              },
+            }
+          );
 
           // Achievements endpoint returns titles in a different format
           titles = achievementsResponse.data?.titles || [];
-          console.log('[Xbox] Achievements count:', titles.length);
         } catch (achievementError) {
           console.warn('[Xbox] Could not fetch achievements:', achievementError.message);
         }
@@ -91,11 +96,11 @@ class XboxService {
         name: title.name || title.titleName,
         playtime: 0,
         lastPlayedAt: title.lastUnlock ? new Date(title.lastUnlock) : null,
-        platform: 'xbox',
+        platform: Platform.XBOX,
       }));
     } catch (error) {
       console.error('[Xbox] Error fetching games:', error.response?.data || error.message);
-      throw new BadRequestError('Failed to fetch Xbox library');
+      throw new BadRequestError(ErrorCode.XBOX_LIBRARY_FAILED);
     }
   }
 
@@ -108,17 +113,15 @@ class XboxService {
 
     // Search result has a 'people' array with results
     if (!searchResult.people || searchResult.people.length === 0) {
-      throw new BadRequestError('Gamertag not found. Please check the spelling.');
+      throw new BadRequestError(ErrorCode.XBOX_GAMERTAG_NOT_FOUND);
     }
 
     const person = searchResult.people[0];
     const xuid = person.xuid;
 
     if (!xuid) {
-      throw new BadRequestError('Could not find XUID for this gamertag');
+      throw new BadRequestError(ErrorCode.XBOX_XUID_NOT_FOUND);
     }
-
-    console.log('[Xbox] Found XUID:', xuid, 'for gamertag:', person.modernGamertag || person.gamertag);
 
     // Return info from search (no need for extra profile call to save API quota)
     return {

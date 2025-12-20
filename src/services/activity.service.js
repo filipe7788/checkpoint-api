@@ -1,4 +1,5 @@
 const prisma = require('../config/database');
+const { GameStatus } = require('../utils/constants');
 
 class ActivityService {
   async createActivity(data) {
@@ -88,7 +89,7 @@ class ActivityService {
     const nowPlaying = await prisma.userGame.findMany({
       where: {
         userId: { in: followingIds },
-        status: 'playing',
+        status: GameStatus.PLAYING,
         updatedAt: { gte: oneDayAgo },
       },
       take: limit,

@@ -2,12 +2,9 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../config/database');
-const {
-  UnauthorizedError,
-  ConflictError,
-  NotFoundError,
-  BadRequestError
-} = require('../utils/errors');
+const { UnauthorizedError, ConflictError, BadRequestError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
+const { SuccessMessages } = require('../utils/constants');
 
 class AuthService {
   async register(email, username, password) {
@@ -20,9 +17,9 @@ class AuthService {
 
     if (existingUser) {
       if (existingUser.email === email) {
-        throw new ConflictError('Email already registered');
+        throw new ConflictError(ErrorCode.EMAIL_ALREADY_REGISTERED);
       }
-      throw new ConflictError('Username already taken');
+      throw new ConflictError(ErrorCode.USERNAME_ALREADY_TAKEN);
     }
 
     // Hash password
@@ -61,26 +58,26 @@ class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedError('Invalid credentials');
+      throw new UnauthorizedError(ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
     // Check if banned
     if (user.isBanned) {
-      throw new UnauthorizedError(`Account banned: ${user.banReason || 'Violation of terms'}`);
+      throw new UnauthorizedError(ErrorCode.AUTH_ACCOUNT_BANNED, { reason: user.banReason });
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedError('Invalid credentials');
+      throw new UnauthorizedError(ErrorCode.AUTH_INVALID_CREDENTIALS);
     }
 
     // Generate tokens
     const { accessToken, refreshToken } = this.generateTokens(user.id);
 
     // Return user without password
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { passwordHash: _passwordHash, ...userWithoutPassword } = user;
 
     return {
       user: userWithoutPassword,
@@ -100,11 +97,11 @@ class AuthService {
       });
 
       if (!user) {
-        throw new UnauthorizedError('User not found');
+        throw new UnauthorizedError(ErrorCode.AUTH_USER_NOT_FOUND);
       }
 
       if (user.isBanned) {
-        throw new UnauthorizedError('Account banned');
+        throw new UnauthorizedError(ErrorCode.AUTH_ACCOUNT_BANNED);
       }
 
       // Generate new tokens
@@ -113,7 +110,7 @@ class AuthService {
       return tokens;
     } catch (error) {
       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
-        throw new UnauthorizedError('Invalid or expired refresh token');
+        throw new UnauthorizedError(ErrorCode.AUTH_INVALID_REFRESH_TOKEN);
       }
       throw error;
     }
@@ -126,13 +123,13 @@ class AuthService {
 
     if (!user) {
       // Don't reveal if user exists
-      return { message: 'If the email exists, a reset link has been sent' };
+      return { message: SuccessMessages.PASSWORD_RESET_EMAIL_SENT };
     }
 
     // Generate reset token (valid for 1 hour)
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    // const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    // const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     // Store hashed token in user record
     await prisma.user.update({
@@ -145,19 +142,17 @@ class AuthService {
     });
 
     // TODO: Send email with reset link
-    // For now, just log it (in production, use a mailer service)
-    console.log(`[AUTH] Password reset token for ${email}: ${resetToken}`);
-    console.log(`[AUTH] Reset link: ${process.env.APP_URL}/reset-password?token=${resetToken}`);
+    // In production, use a mailer service
 
     return {
-      message: 'If the email exists, a reset link has been sent',
+      message: SuccessMessages.PASSWORD_RESET_EMAIL_SENT,
       // In development, return the token
       ...(process.env.NODE_ENV === 'development' && { resetToken }),
     };
   }
 
   async resetPassword(token, newPassword) {
-    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    // const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     // Find user with valid reset token
     const user = await prisma.user.findFirst({
@@ -168,7 +163,7 @@ class AuthService {
     });
 
     if (!user) {
-      throw new BadRequestError('Invalid or expired reset token');
+      throw new BadRequestError(ErrorCode.AUTH_RESET_TOKEN_INVALID);
     }
 
     // Hash new password
@@ -184,27 +179,23 @@ class AuthService {
       },
     });
 
-    return { message: 'Password reset successfully' };
+    return { message: SuccessMessages.PASSWORD_RESET_SUCCESS };
   }
 
   async oauthLogin(provider, profile) {
     const { id, displayName, photos } = profile;
 
-    const email = profile.emails && profile.emails.length > 0
-      ? profile.emails[0].value
-      : profile.email;
+    const email =
+      profile.emails && profile.emails.length > 0 ? profile.emails[0].value : profile.email;
 
     if (!email) {
-      throw new BadRequestError('Email not provided by OAuth provider');
+      throw new BadRequestError(ErrorCode.AUTH_EMAIL_NOT_PROVIDED);
     }
 
     // Try to find existing user by OAuth provider ID
     let user = await prisma.user.findFirst({
       where: {
-        OR: [
-          { [`${provider}Id`]: id },
-          { email },
-        ],
+        OR: [{ [`${provider}Id`]: id }, { email }],
       },
     });
 
@@ -219,7 +210,7 @@ class AuthService {
 
       // Check if banned
       if (user.isBanned) {
-        throw new UnauthorizedError(`Account banned: ${user.banReason || 'Violation of terms'}`);
+        throw new UnauthorizedError(ErrorCode.AUTH_ACCOUNT_BANNED, { reason: user.banReason });
       }
     } else {
       // Create new user
@@ -241,7 +232,7 @@ class AuthService {
     const { accessToken, refreshToken } = this.generateTokens(user.id);
 
     // Return user without password
-    const { passwordHash, ...userWithoutPassword } = user;
+    const { passwordHash: _passwordHash2, ...userWithoutPassword } = user;
 
     return {
       user: userWithoutPassword,
@@ -254,6 +245,7 @@ class AuthService {
     let username = baseUsername.toLowerCase().replace(/[^a-z0-9_]/g, '');
     let counter = 1;
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const existingUser = await prisma.user.findUnique({
         where: { username },
@@ -269,17 +261,13 @@ class AuthService {
   }
 
   generateTokens(userId) {
-    const accessToken = jwt.sign(
-      { userId },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
+    const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
 
-    const refreshToken = jwt.sign(
-      { userId },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
-    );
+    const refreshToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
+    });
 
     return { accessToken, refreshToken };
   }

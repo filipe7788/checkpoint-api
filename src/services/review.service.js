@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const activityService = require('./activity.service');
 const { NotFoundError, BadRequestError, ForbiddenError } = require('../utils/errors');
+const { ErrorCode } = require('../utils/errorCodes');
 
 class ReviewService {
   async createReview(userId, data) {
@@ -16,7 +17,7 @@ class ReviewService {
     });
 
     if (!userGame) {
-      throw new NotFoundError('Game not found in your library');
+      throw new NotFoundError(ErrorCode.GAME_NOT_IN_LIBRARY);
     }
 
     // Check if review already exists
@@ -25,7 +26,7 @@ class ReviewService {
     });
 
     if (existingReview) {
-      throw new BadRequestError('Review already exists for this game');
+      throw new BadRequestError(ErrorCode.REVIEW_ALREADY_EXISTS);
     }
 
     // Create review
@@ -75,11 +76,11 @@ class ReviewService {
     });
 
     if (!review) {
-      throw new NotFoundError('Review not found');
+      throw new NotFoundError(ErrorCode.REVIEW_NOT_FOUND);
     }
 
     if (review.userGame.userId !== userId) {
-      throw new ForbiddenError('Not authorized to update this review');
+      throw new ForbiddenError(ErrorCode.REVIEW_NOT_AUTHORIZED);
     }
 
     const updatedReview = await prisma.review.update({
@@ -115,11 +116,11 @@ class ReviewService {
     });
 
     if (!review) {
-      throw new NotFoundError('Review not found');
+      throw new NotFoundError(ErrorCode.REVIEW_NOT_FOUND);
     }
 
     if (review.userGame.userId !== userId) {
-      throw new ForbiddenError('Not authorized to delete this review');
+      throw new ForbiddenError(ErrorCode.REVIEW_NOT_AUTHORIZED);
     }
 
     await prisma.review.delete({
@@ -164,7 +165,7 @@ class ReviewService {
     // Se houver userId, adicionar informação de curtida
     if (userId) {
       const reviewsWithLikeInfo = await Promise.all(
-        reviews.map(async (review) => {
+        reviews.map(async review => {
           const like = await prisma.reviewLike.findUnique({
             where: {
               userId_reviewId: {
@@ -184,7 +185,7 @@ class ReviewService {
       return reviewsWithLikeInfo;
     }
 
-    return reviews.map((review) => ({
+    return reviews.map(review => ({
       ...review,
       isLikedByCurrentUser: false,
     }));
@@ -218,7 +219,7 @@ class ReviewService {
     // Se houver currentUserId, adicionar informação de curtida
     if (currentUserId) {
       const reviewsWithLikeInfo = await Promise.all(
-        reviews.map(async (review) => {
+        reviews.map(async review => {
           const like = await prisma.reviewLike.findUnique({
             where: {
               userId_reviewId: {
@@ -238,7 +239,7 @@ class ReviewService {
       return reviewsWithLikeInfo;
     }
 
-    return reviews.map((review) => ({
+    return reviews.map(review => ({
       ...review,
       isLikedByCurrentUser: false,
     }));
@@ -255,7 +256,7 @@ class ReviewService {
     });
 
     if (!review) {
-      throw new NotFoundError('Review not found');
+      throw new NotFoundError(ErrorCode.REVIEW_NOT_FOUND);
     }
 
     // Check if already liked
@@ -269,7 +270,7 @@ class ReviewService {
     });
 
     if (existing) {
-      throw new BadRequestError('Already liked this review');
+      throw new BadRequestError(ErrorCode.REVIEW_ALREADY_LIKED);
     }
 
     // Create like and increment count
@@ -311,7 +312,7 @@ class ReviewService {
     });
 
     if (!like) {
-      throw new NotFoundError('Like not found');
+      throw new NotFoundError(ErrorCode.REVIEW_LIKE_NOT_FOUND);
     }
 
     // Delete like and decrement count

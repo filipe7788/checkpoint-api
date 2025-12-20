@@ -1,5 +1,6 @@
 const Joi = require('joi');
 const { ValidationError } = require('../utils/errors');
+const { VALID_GAME_STATUSES } = require('../utils/constants');
 
 function validate(schema, property = 'body') {
   return (req, res, next) => {
@@ -55,7 +56,9 @@ const schemas = {
   // Library schemas
   addToLibrary: Joi.object({
     igdbId: Joi.number().integer().required(),
-    status: Joi.string().valid('owned', 'playing', 'completed', 'want_to_play', 'dropped', 'backlog').required(),
+    status: Joi.string()
+      .valid(...VALID_GAME_STATUSES)
+      .required(),
     platform: Joi.string().required(),
     playtime: Joi.number().integer().min(0),
     startedAt: Joi.date().iso(),
@@ -64,7 +67,7 @@ const schemas = {
   }),
 
   updateLibraryItem: Joi.object({
-    status: Joi.string().valid('owned', 'playing', 'completed', 'want_to_play', 'dropped', 'backlog'),
+    status: Joi.string().valid(...VALID_GAME_STATUSES),
     platform: Joi.string(),
     playtime: Joi.number().integer().min(0),
     startedAt: Joi.date().iso().allow(null),
@@ -98,7 +101,7 @@ const schemas = {
   }),
 
   libraryFilter: Joi.object({
-    status: Joi.string().valid('owned', 'playing', 'completed', 'want_to_play', 'dropped', 'backlog'),
+    status: Joi.string().valid(...VALID_GAME_STATUSES),
     platform: Joi.string(),
     favorite: Joi.boolean(),
   }),

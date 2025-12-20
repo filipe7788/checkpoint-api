@@ -107,13 +107,10 @@ jobs:
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    needs: build
+    needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
@@ -121,29 +118,12 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu/checkpoint-api
+            cd ${{ secrets.EC2_PROJECT_PATH }}
 
-            # Pull latest code
+            # Pull latest code from main
             git pull origin main
 
-            # Pull latest Docker image
-            docker pull ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
+            # Restart the Docker container
+            docker restart api
 
-            # Stop and remove old containers
-            docker-compose down
-
-            # Run database migrations
-            docker-compose run --rm api npx prisma migrate deploy
-
-            # Start new containers
-            docker-compose up -d
-
-            # Clean up old images
-            docker image prune -af
-
-            echo "✅ Deployment complete!"
-
-      - name: Health check
-        run: |
-          sleep 10
-          curl -f ${{ secrets.API_URL }}/api/health || exit 1
+            echo "✅ Deployment complete! Container 'api' restarted."
