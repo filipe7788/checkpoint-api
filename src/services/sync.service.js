@@ -130,10 +130,45 @@ class SyncService {
   }
 
   /**
+   * LAYER 0: Check if we have a manual mapping for this title
+   * Returns the mapped game if found
+   */
+  async findMappedGame(gameName, platform) {
+    const mapping = await prisma.gameTitleMapping.findUnique({
+      where: {
+        platform_originalTitle: {
+          platform,
+          originalTitle: gameName,
+        },
+      },
+      include: {
+        game: {
+          select: {
+            id: true,
+            igdbId: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    return mapping ? mapping.game : null;
+  }
+
+  /**
    * CASCADING SEARCH: Try all layers in order
    * Returns { game, confidence, method } or null
    */
-  async findGameMatch(gameName, cachedGames, igdbGames) {
+  async findGameMatch(gameName, cachedGames, igdbGames, platform = null) {
+    // Layer 0: Check manual mappings first (100% confidence)
+    if (platform) {
+      const mappedGame = await this.findMappedGame(gameName, platform);
+      if (mappedGame) {
+        return { game: mappedGame, confidence: 100, method: 'mapped' };
+      }
+    }
+
     const allGames = [...cachedGames, ...igdbGames];
 
     // Layer 1: Exact match
@@ -428,11 +463,12 @@ class SyncService {
         }
 
         try {
-          // Try cascading search with all layers
+          // Try cascading search with all layers (including manual mappings)
           let matchResult = await this.findGameMatch(
             externalGame.name,
             cachedGames,
-            igdbGames.map(g => ({ ...g, fromIGDB: true }))
+            igdbGames.map(g => ({ ...g, fromIGDB: true })),
+            platform
           );
 
           // If no match found, try with simplified name (before colon)
@@ -442,7 +478,8 @@ class SyncService {
               matchResult = await this.findGameMatch(
                 simplifiedName,
                 cachedGames,
-                igdbGames.map(g => ({ ...g, fromIGDB: true }))
+                igdbGames.map(g => ({ ...g, fromIGDB: true })),
+                platform
               );
             }
           }
@@ -451,6 +488,7 @@ class SyncService {
             notRecognized.push({
               originalName: externalGame.name,
               normalizedName: this.normalizeGameName(externalGame.name),
+              platform,
             });
             failed++;
             continue;
@@ -572,6 +610,91 @@ class SyncService {
     });
 
     return connections;
+  }
+
+  async createTitleMapping(platform, originalTitle, gameId) {
+    // Verify game exists
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+    });
+
+    if (!game) {
+      throw new NotFoundError(ErrorCode.GAME_NOT_FOUND);
+    }
+
+    // Create or update mapping
+    const mapping = await prisma.gameTitleMapping.upsert({
+      where: {
+        platform_originalTitle: {
+          platform,
+          originalTitle,
+        },
+      },
+      update: {
+        gameId,
+        normalizedTitle: this.normalizeGameName(originalTitle),
+      },
+      create: {
+        platform,
+        originalTitle,
+        normalizedTitle: this.normalizeGameName(originalTitle),
+        gameId,
+      },
+      include: {
+        game: true,
+      },
+    });
+
+    return mapping;
+  }
+
+  async deleteTitleMapping(platform, originalTitle) {
+    const mapping = await prisma.gameTitleMapping.findUnique({
+      where: {
+        platform_originalTitle: {
+          platform,
+          originalTitle,
+        },
+      },
+    });
+
+    if (!mapping) {
+      throw new NotFoundError(ErrorCode.MAPPING_NOT_FOUND);
+    }
+
+    await prisma.gameTitleMapping.delete({
+      where: {
+        platform_originalTitle: {
+          platform,
+          originalTitle,
+        },
+      },
+    });
+
+    return { message: SuccessMessages.MAPPING_DELETED };
+  }
+
+  async getTitleMappings(platform = null) {
+    const where = platform ? { platform } : {};
+
+    const mappings = await prisma.gameTitleMapping.findMany({
+      where,
+      include: {
+        game: {
+          select: {
+            id: true,
+            name: true,
+            coverUrl: true,
+            igdbId: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return mappings;
   }
 }
 

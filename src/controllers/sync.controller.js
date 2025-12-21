@@ -119,6 +119,51 @@ class SyncController {
       next(error);
     }
   }
+
+  async createMapping(req, res, next) {
+    try {
+      const { platform, originalTitle, gameId } = req.body;
+
+      const mapping = await syncService.createTitleMapping(platform, originalTitle, gameId);
+
+      res.json({
+        success: true,
+        data: mapping,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteMapping(req, res, next) {
+    try {
+      const { platform, originalTitle } = req.body;
+
+      const result = await syncService.deleteTitleMapping(platform, originalTitle);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getMappings(req, res, next) {
+    try {
+      const { platform } = req.query;
+
+      const mappings = await syncService.getTitleMappings(platform);
+
+      res.json({
+        success: true,
+        data: mappings,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new SyncController();

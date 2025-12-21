@@ -50,6 +50,30 @@ router.get('/:platform/progress', authenticate, syncController.streamProgress);
 router.post('/all', authenticate, syncLimiter, syncController.syncAll);
 
 /**
+ * @route   GET /sync/mappings
+ * @desc    Get all game title mappings (optionally filtered by platform)
+ * @access  Private
+ * @query   platform (optional)
+ */
+router.get('/mappings', authenticate, syncController.getMappings);
+
+/**
+ * @route   POST /sync/mappings
+ * @desc    Create a new game title mapping
+ * @access  Private
+ * @body    { platform, originalTitle, gameId }
+ */
+router.post('/mappings', authenticate, syncController.createMapping);
+
+/**
+ * @route   DELETE /sync/mappings
+ * @desc    Delete a game title mapping
+ * @access  Private
+ * @body    { platform, originalTitle }
+ */
+router.delete('/mappings', authenticate, syncController.deleteMapping);
+
+/**
  * @route   GET /sync/xbox/quota
  * @desc    Get Xbox API quota information
  * @access  Private

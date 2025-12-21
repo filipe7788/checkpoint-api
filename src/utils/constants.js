@@ -54,6 +54,7 @@ const SuccessMessages = {
   PLATFORM_DISCONNECTED: 'Platform disconnected successfully',
   PASSWORD_RESET_SUCCESS: 'Password reset successfully',
   PASSWORD_RESET_EMAIL_SENT: 'If the email exists, a reset link has been sent',
+  MAPPING_DELETED: 'Game title mapping deleted successfully',
 };
 
 // IGDB Field Templates

@@ -89,8 +89,9 @@ model Game {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  userGames  UserGame[]
-  activities Activity[]
+  userGames     UserGame[]
+  activities    Activity[]
+  titleMappings GameTitleMapping[]
 
   @@index([igdbId])
   @@index([name])
@@ -205,4 +206,21 @@ model Activity {
   @@index([userId])
   @@index([type])
   @@index([createdAt])
+}
+
+model GameTitleMapping {
+  id            String   @id @default(uuid())
+  platform      Platform
+  originalTitle String
+  normalizedTitle String
+  gameId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([platform, originalTitle])
+  @@index([platform])
+  @@index([originalTitle])
+  @@index([gameId])
 }
