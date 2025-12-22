@@ -51,9 +51,15 @@ router.get('/steam', authenticate, (req, res) => {
 router.get(
   '/steam/callback',
   (req, res, next) => {
+    const getErrorRedirectUrl = () => {
+      return process.env.APP_DEEP_LINK
+        ? `${process.env.APP_DEEP_LINK}settings/connections?steam=error`
+        : `${process.env.FRONTEND_URL}/settings/connections?steam=error`;
+    };
+
     passport.authenticate('steam', { session: false }, (err, steamProfile) => {
       if (err || !steamProfile) {
-        return res.redirect(`${process.env.FRONTEND_URL}/settings/connections?steam=error`);
+        return res.redirect(getErrorRedirectUrl());
       }
 
       // Attach both user and Steam profile to request
@@ -67,7 +73,7 @@ router.get(
           const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
           req.user = { userId: stateData.userId };
         } catch (e) {
-          return res.redirect(`${process.env.FRONTEND_URL}/settings/connections?steam=error`);
+          return res.redirect(getErrorRedirectUrl());
         }
       }
 

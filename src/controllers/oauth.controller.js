@@ -13,8 +13,10 @@ class OAuthController {
 
       await oauthService.connectSteamAccount(userId, steamProfile);
 
-      // Redirect back to app/frontend with success
-      const redirectUrl = `${process.env.FRONTEND_URL}/settings/connections?steam=success`;
+      // Redirect back to mobile app via deep link (or web frontend)
+      const redirectUrl = process.env.APP_DEEP_LINK
+        ? `${process.env.APP_DEEP_LINK}settings/connections?steam=success`
+        : `${process.env.FRONTEND_URL}/settings/connections?steam=success`;
       res.redirect(redirectUrl);
     } catch (error) {
       next(error);
