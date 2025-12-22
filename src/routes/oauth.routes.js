@@ -15,7 +15,7 @@ const passport = require('../config/passport');
  * @desc    Initiate Steam OAuth connection (user must be logged in)
  * @access  Private
  */
-router.get('/steam', authenticate, (req, res, next) => {
+router.get('/steam', authenticate, (req, res) => {
   // Encode userId in state parameter to retrieve it in callback
   const state = Buffer.from(JSON.stringify({ userId: req.user.userId })).toString('base64');
 
@@ -23,7 +23,7 @@ router.get('/steam', authenticate, (req, res, next) => {
   const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback?state=${state}`;
   const realm = process.env.API_URL;
 
-  // Redirect to Steam OpenID
+  // Build Steam OpenID URL
   const steamOpenIdUrl = 'https://steamcommunity.com/openid/login';
   const params = new URLSearchParams({
     'openid.ns': 'http://specs.openid.net/auth/2.0',
@@ -34,7 +34,13 @@ router.get('/steam', authenticate, (req, res, next) => {
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
   });
 
-  res.redirect(`${steamOpenIdUrl}?${params.toString()}`);
+  const authUrl = `${steamOpenIdUrl}?${params.toString()}`;
+
+  // Return URL for mobile app to open (instead of redirect)
+  res.json({
+    success: true,
+    data: { authUrl }
+  });
 });
 
 /**
