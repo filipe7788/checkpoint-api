@@ -51,6 +51,8 @@ router.get('/steam', authenticate, (req, res) => {
 router.get(
   '/steam/callback',
   (req, res, next) => {
+    console.log('[STEAM CALLBACK] Query params:', req.query);
+
     const getErrorRedirectUrl = () => {
       return process.env.APP_DEEP_LINK
         ? `${process.env.APP_DEEP_LINK}settings/connections?steam=error`
@@ -58,7 +60,10 @@ router.get(
     };
 
     passport.authenticate('steam', { session: false }, (err, steamProfile) => {
+      console.log('[STEAM CALLBACK] Passport result:', { err, steamProfile });
+
       if (err || !steamProfile) {
+        console.error('[STEAM CALLBACK] Authentication failed:', err);
         return res.redirect(getErrorRedirectUrl());
       }
 
@@ -68,11 +73,15 @@ router.get(
       // Try to get userId from query param (we'll pass it in the OAuth flow)
       // This is a workaround since we can't use session easily
       const state = req.query.state;
+      console.log('[STEAM CALLBACK] State:', state);
+
       if (state) {
         try {
           const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
+          console.log('[STEAM CALLBACK] State data:', stateData);
           req.user = { userId: stateData.userId };
         } catch (e) {
+          console.error('[STEAM CALLBACK] Failed to decode state:', e);
           return res.redirect(getErrorRedirectUrl());
         }
       }
