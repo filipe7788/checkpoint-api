@@ -8,7 +8,7 @@ class OAuthController {
     try {
       // req.user is the authenticated JWT user (from auth middleware)
       // req.account is the Steam profile from Passport
-      const userId = req.user.userId;
+      const userId = req.user.userId || req.user.id;
       const steamProfile = req.account;
 
       await oauthService.connectSteamAccount(userId, steamProfile);
