@@ -17,7 +17,7 @@ const passport = require('../config/passport');
  */
 router.get('/steam', authenticate, (req, res) => {
   // Encode userId in state parameter to retrieve it in callback
-  const state = Buffer.from(JSON.stringify({ userId: req.user.userId })).toString('base64');
+  const state = Buffer.from(JSON.stringify({ userId: req.user.id })).toString('base64');
 
   // Manually construct Steam OpenID URL with state parameter
   const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback?state=${state}`;
