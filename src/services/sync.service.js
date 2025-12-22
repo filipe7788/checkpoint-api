@@ -233,17 +233,11 @@ class SyncService {
 
     switch (platform) {
       case Platform.STEAM: {
-        // For Steam, credentials should contain steamId (manual input)
-        if (!credentials.steamId) {
-          throw new BadRequestError(ErrorCode.INVALID_INPUT);
-        }
-        platformData = {
-          platformUserId: credentials.steamId,
-          platformUsername: null,
-          accessToken: null,
-          refreshToken: null,
-        };
-        break;
+        // Steam now uses OAuth - redirect users to /api/oauth/steam instead
+        throw new BadRequestError(
+          'STEAM_OAUTH_REQUIRED',
+          'Please use OAuth to connect your Steam account. Visit /api/oauth/steam'
+        );
       }
 
       case Platform.XBOX: {
@@ -367,9 +361,25 @@ class SyncService {
       let externalGames = [];
 
       switch (platform) {
-        case Platform.STEAM:
-          externalGames = await steamService.getOwnedGames(connection.platformUserId);
+        case Platform.STEAM: {
+          // For Steam, get the Steam ID from OAuthConnection
+          const oauthConnection = await prisma.oAuthConnection.findUnique({
+            where: {
+              userId_provider: {
+                userId,
+                provider: 'steam',
+              },
+            },
+          });
+
+          if (!oauthConnection) {
+            throw new NotFoundError(ErrorCode.PLATFORM_NOT_CONNECTED);
+          }
+
+          const steamId = oauthConnection.providerUserId;
+          externalGames = await steamService.getOwnedGames(steamId);
           break;
+        }
 
         case Platform.XBOX:
           externalGames = await xboxService.getOwnedGames(connection.platformUserId);

@@ -1,6 +1,7 @@
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const AppleStrategy = require('passport-apple');
+const SteamStrategy = require('passport-steam').Strategy;
 
 // Google OAuth Strategy
 passport.use(
@@ -30,6 +31,28 @@ passport.use(
       scope: ['email', 'name'],
     },
     (accessToken, refreshToken, idToken, profile, done) => {
+      return done(null, profile);
+    }
+  )
+);
+
+// Steam OAuth Strategy (OpenID)
+passport.use(
+  new SteamStrategy(
+    {
+      returnURL: `${process.env.API_URL}/api/auth/steam/callback`,
+      realm: process.env.API_URL,
+      apiKey: process.env.STEAM_API_KEY,
+    },
+    (identifier, profile, done) => {
+      // identifier is the full OpenID URL
+      // Extract Steam ID from identifier (e.g., "https://steamcommunity.com/openid/id/76561198012345678")
+      const steamId = identifier.match(/\/id\/(\d+)$/)?.[1];
+
+      // Enrich profile with Steam ID
+      profile.steamId = steamId;
+      profile.id = steamId;
+
       return done(null, profile);
     }
   )

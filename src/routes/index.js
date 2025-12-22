@@ -10,6 +10,7 @@ const reviewRoutes = require('./reviews.routes');
 const followRoutes = require('./follow.routes');
 const activityRoutes = require('./activity.routes');
 const syncRoutes = require('./sync.routes');
+const oauthRoutes = require('./oauth.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -20,6 +21,7 @@ router.use('/reviews', reviewRoutes);
 router.use('/follow', followRoutes);
 router.use('/feed', activityRoutes);
 router.use('/sync', syncRoutes);
+router.use('/oauth', oauthRoutes);
 
 // Health check endpoint
 router.get('/health', (req, res) => {

@@ -24,7 +24,7 @@
     "xbox",
     "playstation"
   ],
-  "author": "",
+  "author": "Filipe da Cruz Ribeiro",
   "license": "MIT",
   "dependencies": {
     "@prisma/client": "^5.8.0",
@@ -41,6 +41,7 @@
     "passport": "^0.7.0",
     "passport-apple": "^2.0.2",
     "passport-google-oauth20": "^2.0.0",
+    "passport-steam": "^1.0.18",
     "psn-api": "^2.8.0"
   },
   "devDependencies": {

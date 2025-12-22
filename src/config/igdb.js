@@ -95,78 +95,148 @@ class IGDBClient {
   }
 
   async searchGamesWithAlternatives(gameName) {
-    const normalizedQuery = this.normalizeGameName(gameName);
+    // Use the new best match system instead of returning all results
+    const bestMatch = await this.searchGameWithBestMatch(gameName, 15);
 
-    const body = `
-      search "${normalizedQuery}";
-      fields ${IGDBFields.GAME_WITH_ALTERNATIVES};
-      limit 5;
-    `;
-
-    try {
-      const results = await this.makeRequest(IGDBAPI.ENDPOINTS.GAMES, body);
-
-      if (results && results.length > 0) {
-        return results;
-      }
-    } catch (error) {
-      console.error(`[IGDB] Alternative names search failed:`, error.message);
+    if (bestMatch) {
+      return [bestMatch];
     }
 
     return [];
   }
 
+  /**
+   * Check if a game is a DLC, expansion, bundle, or other non-main game
+   */
+  isDLCOrExpansion(game) {
+    const name = game.name.toLowerCase();
+    const dlcKeywords = [
+      'dlc',
+      'expansion',
+      'season pass',
+      'bundle',
+      'pack',
+      'edition',
+      'content',
+      ' - ',
+      ': ',
+    ];
+
+    // Check if game category indicates it's a DLC/expansion
+    // IGDB categories: 0=main_game, 1=dlc_addon, 2=expansion, 3=bundle, etc.
+    if (game.category && [1, 2, 3, 4, 10, 11].includes(game.category)) {
+      return true;
+    }
+
+    // Check name for DLC indicators
+    const hasDLCKeyword = dlcKeywords.some(keyword => name.includes(keyword));
+    return hasDLCKeyword;
+  }
+
+  /**
+   * Calculate match score between search query and IGDB result
+   */
+  calculateMatchScore(searchName, igdbGame) {
+    const searchLower = searchName.toLowerCase().trim();
+    const gameLower = igdbGame.name.toLowerCase().trim();
+
+    let score = 0;
+
+    // Exact match (highest priority)
+    if (searchLower === gameLower) {
+      score += 100;
+    }
+
+    // Check if one contains the other
+    if (gameLower.includes(searchLower)) {
+      score += 50;
+    } else if (searchLower.includes(gameLower)) {
+      score += 40;
+    }
+
+    // Word overlap bonus
+    const searchWords = searchLower.split(/\s+/);
+    const gameWords = gameLower.split(/\s+/);
+    const commonWords = searchWords.filter(word => gameWords.includes(word));
+    score += commonWords.length * 10;
+
+    // Penalty for DLC/expansion
+    if (this.isDLCOrExpansion(igdbGame)) {
+      score -= 200;
+    }
+
+    // Bonus for having a rating (indicates it's a main game)
+    if (igdbGame.aggregated_rating && igdbGame.aggregated_rating > 0) {
+      score += 5;
+    }
+
+    // Length similarity bonus (prefer similar length names)
+    const lengthDiff = Math.abs(searchLower.length - gameLower.length);
+    if (lengthDiff < 5) {
+      score += 10;
+    }
+
+    return score;
+  }
+
+  /**
+   * Search for a single game and return the best match
+   * Filters out DLCs and uses scoring to find the most relevant result
+   */
+  async searchGameWithBestMatch(gameName, limit = 15) {
+    const normalizedQuery = this.normalizeGameName(gameName);
+
+    const body = `
+      search "${normalizedQuery}";
+      fields ${IGDBFields.GAME_WITH_ALTERNATIVES}, category;
+      limit ${limit};
+    `;
+
+    try {
+      const results = await this.makeRequest(IGDBAPI.ENDPOINTS.GAMES, body);
+
+      if (!results || results.length === 0) {
+        return null;
+      }
+
+      // Filter out DLCs/expansions and calculate scores
+      const scoredResults = results
+        .map(game => ({
+          game,
+          score: this.calculateMatchScore(gameName, game),
+        }))
+        .filter(result => result.score > 0) // Filter out negative scores (DLCs)
+        .sort((a, b) => b.score - a.score); // Sort by score descending
+
+      if (scoredResults.length === 0) {
+        return null;
+      }
+
+      const bestMatch = scoredResults[0];
+      console.log(
+        `[IGDB] Best match for "${gameName}": "${bestMatch.game.name}" (score: ${bestMatch.score})`
+      );
+
+      return bestMatch.game;
+    } catch (error) {
+      console.error(`[IGDB] Search failed for "${gameName}":`, error.message);
+      return null;
+    }
+  }
+
   async searchMultipleGames(gameNames) {
-    // Use IGDB batch search with OR operator to search multiple games in one request
-    // Process in chunks of 50 games per request (IGDB limit is 500 results per request)
     const allResults = [];
-    const chunkSize = 50;
 
-    for (let i = 0; i < gameNames.length; i += chunkSize) {
-      const chunk = gameNames.slice(i, i + chunkSize);
+    // Process games individually to ensure best match for each
+    for (const gameName of gameNames) {
+      const bestMatch = await this.searchGameWithBestMatch(gameName);
 
-      // Create OR query for batch search
-      const searchQuery = chunk.map(name => `"${name}"`).join(' | ');
-
-      const body = `
-        search ${searchQuery};
-        fields ${IGDBFields.GAME_WITH_ALTERNATIVES};
-        limit 500;
-      `;
-
-      try {
-        const results = await this.makeRequest(IGDBAPI.ENDPOINTS.GAMES, body);
-
-        // For each original game name, find the best match
-        chunk.forEach(originalName => {
-          const normalizedOriginal = originalName.toLowerCase();
-
-          // Find exact match first
-          let match = results.find(r => r.name.toLowerCase() === normalizedOriginal);
-
-          // If no exact match, find closest match
-          if (!match) {
-            match = results.find(r => {
-              const normalizedResult = r.name.toLowerCase();
-              return (
-                normalizedResult.includes(normalizedOriginal) ||
-                normalizedOriginal.includes(normalizedResult)
-              );
-            });
-          }
-
-          if (match) {
-            allResults.push(match);
-          }
-        });
-      } catch (error) {
-        console.error(`[IGDB] Batch search failed:`, error.message);
+      if (bestMatch) {
+        allResults.push(bestMatch);
       }
 
-      // Small delay between chunks to respect rate limits
-      if (i + chunkSize < gameNames.length) {
-        await new Promise(resolve => setTimeout(resolve, 250));
-      }
+      // Small delay to respect rate limits
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     return allResults;

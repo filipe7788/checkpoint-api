@@ -15,9 +15,9 @@ router.get('/status', authenticate, syncController.getStatus);
  * @route   POST /sync/:platform
  * @desc    Connect platform with manual credentials
  * @access  Private
- * @body    Steam: { steamId }
- *          Xbox: { gamertag }
+ * @body    Xbox: { gamertag }
  *          PSN: { npsso, accountId }
+ * @note    Steam uses OAuth - redirect to /api/oauth/steam instead
  */
 router.post('/:platform', authenticate, syncController.connectManual);
 

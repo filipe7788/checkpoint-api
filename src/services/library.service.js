@@ -161,13 +161,18 @@ class LibraryService {
     const statusChanged = updates.status && updates.status !== existing.status;
     const previousStatus = existing.status;
 
+    // Only allow updating these specific fields (prevent changing platform, gameId, userId)
+    const allowedUpdates = {};
+    if (updates.status !== undefined) allowedUpdates.status = updates.status;
+    if (updates.playtime !== undefined) allowedUpdates.playtime = updates.playtime;
+    if (updates.favorite !== undefined) allowedUpdates.favorite = updates.favorite;
+    if (updates.lastPlayedAt !== undefined) allowedUpdates.lastPlayedAt = updates.lastPlayedAt ? new Date(updates.lastPlayedAt) : null;
+    if (updates.startedAt !== undefined) allowedUpdates.startedAt = updates.startedAt ? new Date(updates.startedAt) : null;
+    if (updates.completedAt !== undefined) allowedUpdates.completedAt = updates.completedAt ? new Date(updates.completedAt) : null;
+
     const userGame = await prisma.userGame.update({
       where: { id: userGameId },
-      data: {
-        ...updates,
-        startedAt: updates.startedAt ? new Date(updates.startedAt) : undefined,
-        completedAt: updates.completedAt ? new Date(updates.completedAt) : undefined,
-      },
+      data: allowedUpdates,
       include: {
         game: true,
       },

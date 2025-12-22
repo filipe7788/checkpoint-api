@@ -68,8 +68,8 @@ const schemas = {
 
   updateLibraryItem: Joi.object({
     status: Joi.string().valid(...VALID_GAME_STATUSES),
-    platform: Joi.string(),
     playtime: Joi.number().integer().min(0),
+    lastPlayedAt: Joi.date().iso().allow(null),
     startedAt: Joi.date().iso().allow(null),
     completedAt: Joi.date().iso().allow(null),
     favorite: Joi.boolean(),

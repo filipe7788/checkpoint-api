@@ -64,6 +64,7 @@ model User {
 
   userGames           UserGame[]
   platformConnections PlatformConnection[]
+  oauthConnections    OAuthConnection[]
   activities          Activity[]           @relation("UserActivities")
   followers           Follow[]             @relation("Following")
   following           Follow[]             @relation("Followers")
@@ -223,4 +224,23 @@ model GameTitleMapping {
   @@index([platform])
   @@index([originalTitle])
   @@index([gameId])
+}
+
+model OAuthConnection {
+  id                  String    @id @default(uuid())
+  userId              String
+  provider            String    // steam, google, apple
+  providerUserId      String    // Encrypted provider user ID
+  providerUsername    String?   // Display name from provider
+  providerAvatar      String?   // Avatar URL from provider
+  encryptedData       String    // Encrypted JSON with sensitive OAuth data
+  lastRefreshedAt     DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([provider])
 }
