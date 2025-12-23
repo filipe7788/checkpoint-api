@@ -41,9 +41,9 @@ router.get('/steam', authenticate, (req, res) => {
     }
   });
 
-  // Build Steam OpenID URL - include state in the returnURL path as a query param
-  // Since Steam preserves the return_to exactly, we can include state there
-  const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback?state=${encodeURIComponent(state)}`;
+  // Build Steam OpenID URL WITHOUT state in returnURL (Passport validates exact match)
+  // State will be passed via cookie instead
+  const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback`;
   const realm = process.env.API_URL;
   const steamOpenIdUrl = 'https://steamcommunity.com/openid/login';
 
@@ -96,10 +96,11 @@ router.get(
       return errorMsg ? `${baseUrl}&msg=${encodeURIComponent(errorMsg)}` : baseUrl;
     };
 
-    // Extract state from cookie (set when initiating OAuth)
-    const state = req.cookies?.steam_oauth_state;
-    console.log('[STEAM CALLBACK] State from cookie:', state);
-    console.log('[STEAM CALLBACK] All cookies:', req.cookies);
+    // Extract state from cookie (primary) or query param (fallback)
+    const state = req.cookies?.steam_oauth_state || req.query.state;
+    console.log('[STEAM CALLBACK] State from cookie:', req.cookies?.steam_oauth_state);
+    console.log('[STEAM CALLBACK] State from query:', req.query.state);
+    console.log('[STEAM CALLBACK] Using state:', state);
 
     // Retrieve userId from global state map
     let userId;
