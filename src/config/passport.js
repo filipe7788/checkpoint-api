@@ -60,18 +60,21 @@ passport.use(
 );
 
 // Steam OAuth Strategy - for connection (linking existing account)
-// Note: This strategy accepts dynamic returnURLs with query parameters
+// Note: returnURL will be dynamic (includes state query param) but we configure base URL
 passport.use(
   'steam',
   new SteamStrategy(
     {
+      // Base returnURL - actual URL will include ?state=... but passport-steam
+      // validates against this base, and the full URL is in openid.return_to
       returnURL: `${process.env.API_URL}/api/oauth/steam/callback`,
       realm: process.env.API_URL,
       apiKey: process.env.STEAM_API_KEY,
-      // Allow dynamic returnURL (will be validated against what Steam sends back)
-      passReqToCallback: false,
+      passReqToCallback: true,  // Pass req to callback to access query params
     },
-    (identifier, profile, done) => {
+    (req, identifier, profile, done) => {
+      console.log('[PASSPORT STEAM] Request URL:', req.url);
+      console.log('[PASSPORT STEAM] Query params:', req.query);
       console.log('[PASSPORT STEAM] Identifier:', identifier);
       console.log('[PASSPORT STEAM] Profile:', profile);
 

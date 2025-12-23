@@ -16,8 +16,6 @@ const passport = require('../config/passport');
  * @access  Private
  */
 router.get('/steam', authenticate, (req, res) => {
-  // Store userId in a temporary in-memory map (for stateless OAuth)
-  // Alternative: use a session store or JWT in the state
   const userId = req.user.id;
 
   // Create a unique state token
@@ -39,13 +37,13 @@ router.get('/steam', authenticate, (req, res) => {
         delete global.steamOAuthStates[key];
       }
     } catch (e) {
-      // Invalid state, delete it
       delete global.steamOAuthStates[key];
     }
   });
 
-  // Build Steam OpenID URL WITHOUT state in return_to (must match Passport config exactly)
-  const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback`;
+  // Build Steam OpenID URL - include state in the returnURL path as a query param
+  // Since Steam preserves the return_to exactly, we can include state there
+  const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback?state=${encodeURIComponent(state)}`;
   const realm = process.env.API_URL;
   const steamOpenIdUrl = 'https://steamcommunity.com/openid/login';
 
@@ -58,18 +56,16 @@ router.get('/steam', authenticate, (req, res) => {
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
   });
 
-  // Add state as URL fragment (after #) so it's not part of OpenID validation
-  // The fragment will be available in the browser but won't be sent to the server
-  // For server-side OAuth, we rely on the global state map with a cookie/header instead
-  const authUrl = `${steamOpenIdUrl}?${params.toString()}&state=${encodeURIComponent(state)}`;
+  const authUrl = `${steamOpenIdUrl}?${params.toString()}`;
 
-  console.log('[OAUTH STEAM] Generated auth URL');
+  console.log('[OAUTH STEAM] Generated auth URL with state in return_to');
   console.log('[OAUTH STEAM] State stored in memory for userId:', userId);
+  console.log('[OAUTH STEAM] Return URL:', returnUrl);
 
-  // Return URL for mobile app to open (instead of redirect)
+  // Return URL for mobile app to open
   res.json({
     success: true,
-    data: { authUrl, state }  // Return state to client so it can pass it back
+    data: { authUrl, state }
   });
 });
 
