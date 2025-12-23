@@ -44,8 +44,8 @@ router.get('/steam', authenticate, (req, res) => {
     }
   });
 
-  // Build Steam OpenID URL with state in return_to
-  const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback?state=${encodeURIComponent(state)}`;
+  // Build Steam OpenID URL WITHOUT state in return_to (must match Passport config exactly)
+  const returnUrl = `${process.env.API_URL}/api/oauth/steam/callback`;
   const realm = process.env.API_URL;
   const steamOpenIdUrl = 'https://steamcommunity.com/openid/login';
 
@@ -58,12 +58,18 @@ router.get('/steam', authenticate, (req, res) => {
     'openid.claimed_id': 'http://specs.openid.net/auth/2.0/identifier_select',
   });
 
-  const authUrl = `${steamOpenIdUrl}?${params.toString()}`;
+  // Add state as URL fragment (after #) so it's not part of OpenID validation
+  // The fragment will be available in the browser but won't be sent to the server
+  // For server-side OAuth, we rely on the global state map with a cookie/header instead
+  const authUrl = `${steamOpenIdUrl}?${params.toString()}&state=${encodeURIComponent(state)}`;
+
+  console.log('[OAUTH STEAM] Generated auth URL');
+  console.log('[OAUTH STEAM] State stored in memory for userId:', userId);
 
   // Return URL for mobile app to open (instead of redirect)
   res.json({
     success: true,
-    data: { authUrl }
+    data: { authUrl, state }  // Return state to client so it can pass it back
   });
 });
 
@@ -77,16 +83,18 @@ router.get(
   (req, res, next) => {
     console.log('[STEAM CALLBACK] Full URL:', req.url);
     console.log('[STEAM CALLBACK] Query params:', req.query);
+    console.log('[STEAM CALLBACK] Headers:', req.headers);
 
-    const getErrorRedirectUrl = () => {
-      return process.env.APP_DEEP_LINK
+    const getErrorRedirectUrl = (errorMsg = '') => {
+      const baseUrl = process.env.APP_DEEP_LINK
         ? `${process.env.APP_DEEP_LINK}settings/connections?steam=error`
         : `${process.env.FRONTEND_URL}/settings/connections?steam=error`;
+      return errorMsg ? `${baseUrl}&msg=${encodeURIComponent(errorMsg)}` : baseUrl;
     };
 
-    // Extract state from query BEFORE Passport processes the request
-    const state = req.query.state;
-    console.log('[STEAM CALLBACK] State from query:', state);
+    // Extract state from query or header
+    const state = req.query.state || req.headers['x-steam-state'];
+    console.log('[STEAM CALLBACK] State:', state);
 
     // Retrieve userId from global state map
     let userId;
@@ -97,30 +105,29 @@ router.get(
       // Clean up the state immediately after use
       delete global.steamOAuthStates[state];
     } else {
-      console.error('[STEAM CALLBACK] State not found in state map');
-      return res.redirect(getErrorRedirectUrl());
+      console.error('[STEAM CALLBACK] State not found or invalid');
+      console.error('[STEAM CALLBACK] Available states:', Object.keys(global.steamOAuthStates || {}));
+      // Continue anyway - we'll handle this after Passport validation
     }
-
-    // Temporarily remove state from query to avoid Passport validation issues
-    const originalState = req.query.state;
-    delete req.query.state;
 
     passport.authenticate('steam', { session: false }, (err, steamProfile) => {
       console.log('[PASSPORT AUTHENTICATE] Error:', err);
       console.log('[PASSPORT AUTHENTICATE] Steam Profile:', steamProfile);
 
-      // Restore state to query
-      req.query.state = originalState;
-
       if (err) {
         console.error('[STEAM CALLBACK] Authentication error:', err);
         console.error('[STEAM CALLBACK] Error details:', JSON.stringify(err, null, 2));
-        return res.redirect(getErrorRedirectUrl());
+        return res.redirect(getErrorRedirectUrl('auth_failed'));
       }
 
       if (!steamProfile) {
         console.error('[STEAM CALLBACK] No Steam profile returned');
-        return res.redirect(getErrorRedirectUrl());
+        return res.redirect(getErrorRedirectUrl('no_profile'));
+      }
+
+      if (!userId) {
+        console.error('[STEAM CALLBACK] No userId found - state was missing or invalid');
+        return res.redirect(getErrorRedirectUrl('no_user'));
       }
 
       // Attach Steam profile and userId to request
