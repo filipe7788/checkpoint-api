@@ -28,6 +28,13 @@ router.get('/steam', authenticate, (req, res) => {
   global.steamOAuthStates = global.steamOAuthStates || {};
   global.steamOAuthStates[state] = userId;
 
+  // Also store the most recent OAuth attempt (fallback if cookie doesn't work)
+  global.lastSteamOAuthAttempt = {
+    userId,
+    timestamp: Date.now(),
+    state
+  };
+
   // Clean up old states (older than 10 minutes)
   const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
   Object.keys(global.steamOAuthStates).forEach(key => {
@@ -114,9 +121,22 @@ router.get(
       // Clear the cookie
       res.clearCookie('steam_oauth_state');
     } else {
-      console.error('[STEAM CALLBACK] State not found or invalid');
-      console.error('[STEAM CALLBACK] Available states:', Object.keys(global.steamOAuthStates || {}));
-      // Continue anyway - we'll handle this after Passport validation
+      // Fallback: use the most recent OAuth attempt (within last 10 minutes)
+      console.warn('[STEAM CALLBACK] State not found, trying fallback to last OAuth attempt');
+      if (global.lastSteamOAuthAttempt) {
+        const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+        if (global.lastSteamOAuthAttempt.timestamp > tenMinutesAgo) {
+          userId = global.lastSteamOAuthAttempt.userId;
+          console.log('[STEAM CALLBACK] Using userId from last OAuth attempt:', userId);
+
+          // Clean up
+          delete global.lastSteamOAuthAttempt;
+        } else {
+          console.error('[STEAM CALLBACK] Last OAuth attempt too old');
+        }
+      } else {
+        console.error('[STEAM CALLBACK] No last OAuth attempt found');
+      }
     }
 
     passport.authenticate('steam', { session: false }, (err, steamProfile) => {
