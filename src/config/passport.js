@@ -60,6 +60,7 @@ passport.use(
 );
 
 // Steam OAuth Strategy - for connection (linking existing account)
+// Note: This strategy accepts dynamic returnURLs with query parameters
 passport.use(
   'steam',
   new SteamStrategy(
@@ -67,11 +68,18 @@ passport.use(
       returnURL: `${process.env.API_URL}/api/oauth/steam/callback`,
       realm: process.env.API_URL,
       apiKey: process.env.STEAM_API_KEY,
+      // Allow dynamic returnURL (will be validated against what Steam sends back)
+      passReqToCallback: false,
     },
     (identifier, profile, done) => {
+      console.log('[PASSPORT STEAM] Identifier:', identifier);
+      console.log('[PASSPORT STEAM] Profile:', profile);
+
       // identifier is the full OpenID URL
       // Extract Steam ID from identifier (e.g., "https://steamcommunity.com/openid/id/76561198012345678")
       const steamId = identifier.match(/\/id\/(\d+)$/)?.[1];
+
+      console.log('[PASSPORT STEAM] Extracted Steam ID:', steamId);
 
       // Enrich profile with Steam ID
       profile.steamId = steamId;
