@@ -62,6 +62,14 @@ router.get('/steam', authenticate, (req, res) => {
   console.log('[OAUTH STEAM] State stored in memory for userId:', userId);
   console.log('[OAUTH STEAM] Return URL:', returnUrl);
 
+  // Set state in a secure HTTP-only cookie that will be sent back on callback
+  res.cookie('steam_oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 10 * 60 * 1000, // 10 minutes
+  });
+
   // Return URL for mobile app to open
   res.json({
     success: true,
@@ -88,9 +96,10 @@ router.get(
       return errorMsg ? `${baseUrl}&msg=${encodeURIComponent(errorMsg)}` : baseUrl;
     };
 
-    // Extract state from query or header
-    const state = req.query.state || req.headers['x-steam-state'];
-    console.log('[STEAM CALLBACK] State:', state);
+    // Extract state from cookie (set when initiating OAuth)
+    const state = req.cookies?.steam_oauth_state;
+    console.log('[STEAM CALLBACK] State from cookie:', state);
+    console.log('[STEAM CALLBACK] All cookies:', req.cookies);
 
     // Retrieve userId from global state map
     let userId;
@@ -100,6 +109,9 @@ router.get(
 
       // Clean up the state immediately after use
       delete global.steamOAuthStates[state];
+
+      // Clear the cookie
+      res.clearCookie('steam_oauth_state');
     } else {
       console.error('[STEAM CALLBACK] State not found or invalid');
       console.error('[STEAM CALLBACK] Available states:', Object.keys(global.steamOAuthStates || {}));

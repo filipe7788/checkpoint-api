@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const passport = require('./config/passport');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { generalLimiter } = require('./middleware/rateLimiter');
@@ -23,6 +24,9 @@ app.use(
     credentials: true,
   })
 );
+
+// Cookie parser - must be before routes
+app.use(cookieParser());
 
 // Body parsers
 app.use(express.json());
