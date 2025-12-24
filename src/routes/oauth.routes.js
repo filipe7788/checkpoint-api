@@ -96,11 +96,63 @@ router.get(
     console.log('[STEAM CALLBACK] Query params:', req.query);
     console.log('[STEAM CALLBACK] Headers:', req.headers);
 
-    const getErrorRedirectUrl = (errorMsg = '') => {
-      const baseUrl = process.env.APP_DEEP_LINK
-        ? `${process.env.APP_DEEP_LINK}settings/connections?steam=error`
-        : `${process.env.FRONTEND_URL}/settings/connections?steam=error`;
-      return errorMsg ? `${baseUrl}&msg=${encodeURIComponent(errorMsg)}` : baseUrl;
+    const sendErrorPage = (errorMsg = 'auth_failed') => {
+      const redirectUrl = process.env.APP_DEEP_LINK
+        ? `${process.env.APP_DEEP_LINK}settings/connections?steam=error&msg=${encodeURIComponent(errorMsg)}`
+        : `${process.env.FRONTEND_URL}/settings/connections?steam=error&msg=${encodeURIComponent(errorMsg)}`;
+
+      return res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Steam Connection Failed</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+              color: white;
+              text-align: center;
+              padding: 20px;
+            }
+            .container {
+              max-width: 400px;
+            }
+            .error-icon {
+              font-size: 64px;
+              margin-bottom: 20px;
+            }
+            h1 {
+              font-size: 24px;
+              margin-bottom: 10px;
+            }
+            p {
+              font-size: 16px;
+              opacity: 0.9;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error-icon">✗</div>
+            <h1>Connection Failed</h1>
+            <p>Redirecting back to the app...</p>
+          </div>
+          <script>
+            window.location.href = "${redirectUrl}";
+            setTimeout(() => {
+              window.location.href = "${redirectUrl}";
+            }, 1000);
+          </script>
+        </body>
+        </html>
+      `);
     };
 
     // Extract state from cookie (primary) or query param (fallback)
@@ -146,17 +198,17 @@ router.get(
       if (err) {
         console.error('[STEAM CALLBACK] Authentication error:', err);
         console.error('[STEAM CALLBACK] Error details:', JSON.stringify(err, null, 2));
-        return res.redirect(getErrorRedirectUrl('auth_failed'));
+        return sendErrorPage('auth_failed');
       }
 
       if (!steamProfile) {
         console.error('[STEAM CALLBACK] No Steam profile returned');
-        return res.redirect(getErrorRedirectUrl('no_profile'));
+        return sendErrorPage('no_profile');
       }
 
       if (!userId) {
         console.error('[STEAM CALLBACK] No userId found - state was missing or invalid');
-        return res.redirect(getErrorRedirectUrl('no_user'));
+        return sendErrorPage('no_user');
       }
 
       // Attach Steam profile and userId to request
