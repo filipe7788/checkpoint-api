@@ -12,6 +12,40 @@ const { syncLimiter } = require('../middleware/rateLimiter');
 router.get('/status', authenticate, syncController.getStatus);
 
 /**
+ * @route   GET /sync/mappings
+ * @desc    Get all game title mappings (optionally filtered by platform)
+ * @access  Private
+ * @query   platform (optional)
+ */
+router.get('/mappings', authenticate, syncController.getMappings);
+
+/**
+ * @route   POST /sync/mappings
+ * @desc    Create a new game title mapping
+ * @access  Private
+ * @body    { platform, originalTitle, gameId }
+ */
+router.post('/mappings', (req, res, next) => {
+  console.log('[POST /mappings] ===== ROUTE HIT =====');
+  console.log('[POST /mappings] Body:', JSON.stringify(req.body));
+  console.log('[POST /mappings] Content-Type:', req.headers['content-type']);
+  console.log('[POST /mappings] User:', req.user?.id);
+  next();
+}, authenticate, (req, res, next) => {
+  console.log('[POST /mappings] ===== AFTER AUTH =====');
+  console.log('[POST /mappings] Authenticated user:', req.user?.id);
+  next();
+}, syncController.createMapping);
+
+/**
+ * @route   DELETE /sync/mappings
+ * @desc    Delete a game title mapping
+ * @access  Private
+ * @body    { platform, originalTitle }
+ */
+router.delete('/mappings', authenticate, syncController.deleteMapping);
+
+/**
  * @route   POST /sync/:platform
  * @desc    Connect platform with manual credentials
  * @access  Private
@@ -48,40 +82,6 @@ router.get('/:platform/progress', authenticate, syncController.streamProgress);
  * @access  Private
  */
 router.post('/all', authenticate, syncLimiter, syncController.syncAll);
-
-/**
- * @route   GET /sync/mappings
- * @desc    Get all game title mappings (optionally filtered by platform)
- * @access  Private
- * @query   platform (optional)
- */
-router.get('/mappings', authenticate, syncController.getMappings);
-
-/**
- * @route   POST /sync/mappings
- * @desc    Create a new game title mapping
- * @access  Private
- * @body    { platform, originalTitle, gameId }
- */
-router.post('/mappings', (req, res, next) => {
-  console.log('[POST /mappings] ===== ROUTE HIT =====');
-  console.log('[POST /mappings] Body:', JSON.stringify(req.body));
-  console.log('[POST /mappings] Content-Type:', req.headers['content-type']);
-  console.log('[POST /mappings] User:', req.user?.id);
-  next();
-}, authenticate, (req, res, next) => {
-  console.log('[POST /mappings] ===== AFTER AUTH =====');
-  console.log('[POST /mappings] Authenticated user:', req.user?.id);
-  next();
-}, syncController.createMapping);
-
-/**
- * @route   DELETE /sync/mappings
- * @desc    Delete a game title mapping
- * @access  Private
- * @body    { platform, originalTitle }
- */
-router.delete('/mappings', authenticate, syncController.deleteMapping);
 
 /**
  * @route   GET /sync/xbox/quota
