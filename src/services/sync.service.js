@@ -496,9 +496,11 @@ class SyncService {
 
           if (!matchResult) {
             notRecognized.push({
+              title: externalGame.name, // Usar 'title' para compatibilidade com o frontend
               originalName: externalGame.name,
               normalizedName: this.normalizeGameName(externalGame.name),
               platform,
+              image: externalGame.coverUrl || externalGame.iconUrl || null, // Incluir imagem se disponível
             });
             failed++;
             continue;
