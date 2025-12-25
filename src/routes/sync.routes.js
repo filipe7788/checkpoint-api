@@ -63,7 +63,11 @@ router.get('/mappings', authenticate, syncController.getMappings);
  * @access  Private
  * @body    { platform, originalTitle, gameId }
  */
-router.post('/mappings', authenticate, syncController.createMapping);
+router.post('/mappings', authenticate, (req, res, next) => {
+  console.log('[POST /mappings] Route hit, body:', req.body);
+  console.log('[POST /mappings] Content-Type:', req.headers['content-type']);
+  next();
+}, syncController.createMapping);
 
 /**
  * @route   DELETE /sync/mappings

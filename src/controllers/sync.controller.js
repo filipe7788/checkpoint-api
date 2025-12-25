@@ -125,7 +125,25 @@ class SyncController {
       const { platform, originalTitle, gameId } = req.body;
       console.log('[createMapping] Received:', { platform, originalTitle, gameId, platformType: typeof platform });
 
-      const mapping = await syncService.createTitleMapping(platform, originalTitle, gameId);
+      // Validate platform enum
+      const validPlatforms = ['steam', 'xbox', 'psn', 'nintendo', 'epic'];
+      const normalizedPlatform = platform?.toLowerCase().trim();
+
+      console.log('[createMapping] Normalized platform:', normalizedPlatform);
+
+      if (!normalizedPlatform || !validPlatforms.includes(normalizedPlatform)) {
+        console.log('[createMapping] Invalid platform:', platform, 'valid options:', validPlatforms);
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_PLATFORM',
+            message: `Platform must be one of: ${validPlatforms.join(', ')}`,
+            received: platform,
+          },
+        });
+      }
+
+      const mapping = await syncService.createTitleMapping(normalizedPlatform, originalTitle, gameId);
 
       res.json({
         success: true,
