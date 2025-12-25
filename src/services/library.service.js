@@ -114,12 +114,14 @@ class LibraryService {
       where,
       include: {
         game: true,
-        review: {
+        reviews: {
           select: {
             id: true,
             rating: true,
             likesCount: true,
           },
+          take: 1, // Get only the first review
+          orderBy: { createdAt: 'desc' },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -136,6 +138,7 @@ class LibraryService {
           ...userGame,
           platforms: [userGame.platform],
           totalPlaytime: userGame.playtime || 0,
+          review: userGame.reviews && userGame.reviews.length > 0 ? userGame.reviews[0] : null,
         });
       } else {
         const existing = gameMap.get(gameId);
@@ -148,9 +151,9 @@ class LibraryService {
           existing.updatedAt = userGame.updatedAt;
         }
 
-        // Keep review if exists
-        if (userGame.review) {
-          existing.review = userGame.review;
+        // Keep review if exists (use first review from array)
+        if (userGame.reviews && userGame.reviews.length > 0) {
+          existing.review = userGame.reviews[0];
         }
       }
     }
@@ -166,12 +169,14 @@ class LibraryService {
       },
       include: {
         game: true,
-        review: {
+        reviews: {
           include: {
             likes: {
               where: { userId },
             },
           },
+          take: 1,
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -180,7 +185,11 @@ class LibraryService {
       throw new NotFoundError(ErrorCode.GAME_NOT_IN_LIBRARY);
     }
 
-    return userGame;
+    // Transform reviews array to review object for backward compatibility
+    return {
+      ...userGame,
+      review: userGame.reviews && userGame.reviews.length > 0 ? userGame.reviews[0] : null,
+    };
   }
 
   async updateLibraryItem(userId, userGameId, updates) {
