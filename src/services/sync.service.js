@@ -501,7 +501,7 @@ class SyncService {
               image: externalGame.coverUrl || externalGame.iconUrl || null, // Incluir imagem se disponível
               // Incluir TODOS os dados originais para usar quando mapear
               platformData: {
-                hoursPlayed: externalGame.hoursPlayed || 0,
+                playtime: externalGame.playtime || 0, // Tempo em minutos
                 achievements: externalGame.achievements || [],
                 totalAchievements: externalGame.totalAchievements || 0,
                 lastPlayed: externalGame.lastPlayed || null,
@@ -674,7 +674,7 @@ class SyncService {
       },
       update: {
         // Se já existe, atualiza com novos dados se fornecidos
-        playtime: platformData?.hoursPlayed ?? 0,
+        playtime: platformData?.playtime || 0, // Tempo em minutos
         updatedAt: new Date(),
       },
       create: {
@@ -682,7 +682,7 @@ class SyncService {
         gameId,
         platform,
         status: 'playing', // Default status quando vem de plataforma
-        playtime: platformData?.hoursPlayed || 0,
+        playtime: platformData?.playtime || 0, // Tempo em minutos
       },
       include: {
         game: true,
