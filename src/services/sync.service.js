@@ -686,8 +686,7 @@ class SyncService {
       },
       update: {
         // Se já existe, atualiza com novos dados se fornecidos
-        ...(platformData?.hoursPlayed && { hoursPlayed: platformData.hoursPlayed }),
-        ...(platformData?.lastPlayed && { lastPlayedAt: new Date(platformData.lastPlayed) }),
+        ...(platformData?.hoursPlayed && { playtime: platformData.hoursPlayed }),
         updatedAt: new Date(),
       },
       create: {
@@ -695,9 +694,7 @@ class SyncService {
         gameId,
         platform,
         status: 'playing', // Default status quando vem de plataforma
-        hoursPlayed: platformData?.hoursPlayed || 0,
-        lastPlayedAt: platformData?.lastPlayed ? new Date(platformData.lastPlayed) : null,
-        platformGameId: platformData?.platformGameId || null,
+        playtime: platformData?.hoursPlayed || 0,
       },
       include: {
         game: true,
