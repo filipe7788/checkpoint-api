@@ -124,7 +124,7 @@ model UserGame {
 
 model Review {
   id               String   @id @default(uuid())
-  userGameId       String   @unique
+  userGameId       String
   rating           Int
   text             String?
   containsSpoilers Boolean  @default(false)
@@ -138,6 +138,7 @@ model Review {
 
   @@index([userGameId])
   @@index([rating])
+  @@index([createdAt])
 }
 
 model PlatformConnection {

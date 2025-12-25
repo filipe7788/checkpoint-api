@@ -20,16 +20,7 @@ class ReviewService {
       throw new NotFoundError(ErrorCode.GAME_NOT_IN_LIBRARY);
     }
 
-    // Check if review already exists
-    const existingReview = await prisma.review.findUnique({
-      where: { userGameId },
-    });
-
-    if (existingReview) {
-      throw new BadRequestError(ErrorCode.REVIEW_ALREADY_EXISTS);
-    }
-
-    // Create review
+    // Create review (permitir múltiplas reviews)
     const review = await prisma.review.create({
       data: {
         userGameId,
