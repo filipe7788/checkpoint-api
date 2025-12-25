@@ -26,6 +26,11 @@ class GameService {
       throw new NotFoundError(ErrorCode.GAME_NOT_FOUND);
     }
 
+    // Ensure igdbRating has proper decimal formatting
+    if (game.igdbRating !== null) {
+      game.igdbRating = parseFloat(game.igdbRating.toFixed(2));
+    }
+
     return game;
   }
 
@@ -42,6 +47,11 @@ class GameService {
         throw new NotFoundError(ErrorCode.GAME_NOT_FOUND);
       }
       game = await this.cacheGame(igdbGame);
+    }
+
+    // Ensure igdbRating has proper decimal formatting
+    if (game.igdbRating !== null) {
+      game.igdbRating = parseFloat(game.igdbRating.toFixed(2));
     }
 
     return game;
@@ -110,7 +120,7 @@ class GameService {
         : null,
       genres: igdbGame.genres?.map(g => g.name) || [],
       platforms: igdbGame.platforms?.map(p => p.name) || [],
-      rating: igdbGame.aggregated_rating || null,
+      rating: igdbGame.aggregated_rating ? parseFloat(igdbGame.aggregated_rating.toFixed(2)) : null,
     };
   }
 }

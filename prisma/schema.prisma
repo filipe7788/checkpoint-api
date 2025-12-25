@@ -124,7 +124,7 @@ model UserGame {
 
 model Review {
   id               String   @id @default(uuid())
-  userGameId       String
+  userGameId       String   @unique
   rating           Int
   text             String?
   containsSpoilers Boolean  @default(false)
