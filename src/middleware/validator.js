@@ -78,13 +78,13 @@ const schemas = {
   // Review schemas
   createReview: Joi.object({
     userGameId: Joi.string().uuid().required(),
-    rating: Joi.number().integer().min(1).max(5).required(),
+    rating: Joi.number().min(1).max(5).required(),
     text: Joi.string().max(5000).allow(''),
     containsSpoilers: Joi.boolean(),
   }),
 
   updateReview: Joi.object({
-    rating: Joi.number().integer().min(1).max(5),
+    rating: Joi.number().min(1).max(5),
     text: Joi.string().max(5000).allow(''),
     containsSpoilers: Joi.boolean(),
   }),
