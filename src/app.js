@@ -39,7 +39,16 @@ app.use(passport.initialize());
 app.use(generalLimiter);
 
 // Request logging in development
-// Removed - use a proper logger instead if needed
+app.use((req, res, next) => {
+  if (req.url.includes('/mappings')) {
+    console.log('[APP] ===== REQUEST RECEIVED =====');
+    console.log('[APP] Method:', req.method);
+    console.log('[APP] URL:', req.url);
+    console.log('[APP] Body:', JSON.stringify(req.body));
+    console.log('[APP] Headers:', JSON.stringify(req.headers));
+  }
+  next();
+});
 
 // API routes
 app.use('/api', routes);

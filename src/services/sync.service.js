@@ -501,6 +501,14 @@ class SyncService {
               normalizedName: this.normalizeGameName(externalGame.name),
               platform,
               image: externalGame.coverUrl || externalGame.iconUrl || null, // Incluir imagem se disponível
+              // Incluir TODOS os dados originais para usar quando mapear
+              platformData: {
+                hoursPlayed: externalGame.hoursPlayed || 0,
+                achievements: externalGame.achievements || [],
+                totalAchievements: externalGame.totalAchievements || 0,
+                lastPlayed: externalGame.lastPlayed || null,
+                platformGameId: externalGame.id || null,
+              },
             });
             failed++;
             continue;
@@ -624,7 +632,15 @@ class SyncService {
     return connections;
   }
 
-  async createTitleMapping(platform, originalTitle, gameId) {
+  async createTitleMapping(userId, platform, originalTitle, gameId, platformData = null) {
+    console.log('[createTitleMapping] Creating mapping and adding to library:', {
+      userId,
+      platform,
+      originalTitle,
+      gameId,
+      platformData,
+    });
+
     // Verify game exists
     const game = await prisma.game.findUnique({
       where: { id: gameId },
@@ -657,7 +673,73 @@ class SyncService {
       },
     });
 
-    return mapping;
+    console.log('[createTitleMapping] Mapping created:', mapping.id);
+
+    // Adicionar o jogo na biblioteca do usuário com os dados da plataforma
+    const libraryEntry = await prisma.userGame.upsert({
+      where: {
+        userId_gameId_platform: {
+          userId,
+          gameId,
+          platform,
+        },
+      },
+      update: {
+        // Se já existe, atualiza com novos dados se fornecidos
+        ...(platformData?.hoursPlayed && { hoursPlayed: platformData.hoursPlayed }),
+        ...(platformData?.lastPlayed && { lastPlayedAt: new Date(platformData.lastPlayed) }),
+        updatedAt: new Date(),
+      },
+      create: {
+        userId,
+        gameId,
+        platform,
+        status: 'playing', // Default status quando vem de plataforma
+        hoursPlayed: platformData?.hoursPlayed || 0,
+        lastPlayedAt: platformData?.lastPlayed ? new Date(platformData.lastPlayed) : null,
+        platformGameId: platformData?.platformGameId || null,
+      },
+      include: {
+        game: true,
+      },
+    });
+
+    console.log('[createTitleMapping] Added to library:', libraryEntry.id);
+
+    // Se tem achievements, adicionar também
+    if (platformData?.achievements && platformData.achievements.length > 0) {
+      console.log('[createTitleMapping] Processing achievements:', platformData.achievements.length);
+
+      for (const achievement of platformData.achievements) {
+        await prisma.achievement.upsert({
+          where: {
+            userId_gameId_achievementId: {
+              userId,
+              gameId,
+              achievementId: achievement.id || achievement.name,
+            },
+          },
+          update: {
+            unlockedAt: achievement.unlocked ? new Date(achievement.unlockedAt) : null,
+          },
+          create: {
+            userId,
+            gameId,
+            achievementId: achievement.id || achievement.name,
+            name: achievement.name,
+            description: achievement.description || null,
+            iconUrl: achievement.icon || null,
+            unlockedAt: achievement.unlocked ? new Date(achievement.unlockedAt) : null,
+          },
+        });
+      }
+    }
+
+    return {
+      mapping,
+      libraryEntry,
+      achievementsCount: platformData?.achievements?.length || 0,
+    };
   }
 
   async deleteTitleMapping(platform, originalTitle) {

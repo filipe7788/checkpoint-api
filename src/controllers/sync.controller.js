@@ -122,8 +122,8 @@ class SyncController {
 
   async createMapping(req, res, next) {
     try {
-      const { platform, originalTitle, gameId } = req.body;
-      console.log('[createMapping] Received:', { platform, originalTitle, gameId, platformType: typeof platform });
+      const { platform, originalTitle, gameId, platformData } = req.body;
+      console.log('[createMapping] Received:', { platform, originalTitle, gameId, platformData, platformType: typeof platform });
 
       // Validate platform enum
       const validPlatforms = ['steam', 'xbox', 'psn', 'nintendo', 'epic'];
@@ -143,11 +143,17 @@ class SyncController {
         });
       }
 
-      const mapping = await syncService.createTitleMapping(normalizedPlatform, originalTitle, gameId);
+      const result = await syncService.createTitleMapping(
+        req.user.id,
+        normalizedPlatform,
+        originalTitle,
+        gameId,
+        platformData
+      );
 
       res.json({
         success: true,
-        data: mapping,
+        data: result,
       });
     } catch (error) {
       next(error);
