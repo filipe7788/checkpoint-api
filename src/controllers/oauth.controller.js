@@ -64,13 +64,10 @@ class OAuthController {
             <p>Redirecting back to the app...</p>
           </div>
           <script>
-            // Redirect immediately
-            window.location.href = "${redirectUrl}";
-
-            // Fallback after 1 second
+            // Wait a bit before redirecting to ensure app's deep link listener is ready
             setTimeout(() => {
               window.location.href = "${redirectUrl}";
-            }, 1000);
+            }, 500);
           </script>
         </body>
         </html>
