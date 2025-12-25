@@ -123,6 +123,7 @@ class SyncController {
   async createMapping(req, res, next) {
     try {
       const { platform, originalTitle, gameId } = req.body;
+      console.log('[createMapping] Received:', { platform, originalTitle, gameId, platformType: typeof platform });
 
       const mapping = await syncService.createTitleMapping(platform, originalTitle, gameId);
 
