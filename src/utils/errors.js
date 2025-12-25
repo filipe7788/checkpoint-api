@@ -39,6 +39,12 @@ class ConflictError extends AppError {
   }
 }
 
+class ValidationError extends AppError {
+  constructor(errorCode, metadata = null) {
+    super(errorCode, 400, metadata);
+  }
+}
+
 module.exports = {
   AppError,
   BadRequestError,
@@ -46,4 +52,5 @@ module.exports = {
   ForbiddenError,
   NotFoundError,
   ConflictError,
+  ValidationError,
 };
