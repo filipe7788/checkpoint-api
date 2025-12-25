@@ -25,17 +25,17 @@ router.get('/mappings', authenticate, syncController.getMappings);
  * @access  Private
  * @body    { platform, originalTitle, gameId }
  */
-router.post('/mappings', (req, res, next) => {
-  console.log('[POST /mappings] ===== ROUTE HIT =====');
-  console.log('[POST /mappings] Body:', JSON.stringify(req.body));
-  console.log('[POST /mappings] Content-Type:', req.headers['content-type']);
-  console.log('[POST /mappings] User:', req.user?.id);
-  next();
-}, authenticate, (req, res, next) => {
-  console.log('[POST /mappings] ===== AFTER AUTH =====');
-  console.log('[POST /mappings] Authenticated user:', req.user?.id);
-  next();
-}, syncController.createMapping);
+router.post(
+  '/mappings',
+  (req, res, next) => {
+    next();
+  },
+  authenticate,
+  (req, res, next) => {
+    next();
+  },
+  syncController.createMapping
+);
 
 /**
  * @route   DELETE /sync/mappings

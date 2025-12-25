@@ -70,19 +70,12 @@ passport.use(
       returnURL: `${process.env.API_URL}/api/oauth/steam/callback`,
       realm: process.env.API_URL,
       apiKey: process.env.STEAM_API_KEY,
-      passReqToCallback: true,  // Pass req to callback to access query params
+      passReqToCallback: true, // Pass req to callback to access query params
     },
     (req, identifier, profile, done) => {
-      console.log('[PASSPORT STEAM] Request URL:', req.url);
-      console.log('[PASSPORT STEAM] Query params:', req.query);
-      console.log('[PASSPORT STEAM] Identifier:', identifier);
-      console.log('[PASSPORT STEAM] Profile:', profile);
-
       // identifier is the full OpenID URL
       // Extract Steam ID from identifier (e.g., "https://steamcommunity.com/openid/id/76561198012345678")
       const steamId = identifier.match(/\/id\/(\d+)$/)?.[1];
-
-      console.log('[PASSPORT STEAM] Extracted Steam ID:', steamId);
 
       // Enrich profile with Steam ID
       profile.steamId = steamId;

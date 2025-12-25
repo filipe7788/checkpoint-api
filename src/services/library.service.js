@@ -23,8 +23,47 @@ class LibraryService {
       },
     });
 
+    // If exists, update instead of creating new
     if (existing) {
-      throw new ConflictError(ErrorCode.GAME_ALREADY_IN_LIBRARY);
+      const userGame = await prisma.userGame.update({
+        where: {
+          userId_gameId_platform: {
+            userId,
+            gameId: game.id,
+            platform,
+          },
+        },
+        data: {
+          status,
+          playtime: playtime ?? existing.playtime,
+          startedAt: startedAt ? new Date(startedAt) : existing.startedAt,
+          completedAt: completedAt ? new Date(completedAt) : existing.completedAt,
+          favorite: favorite ?? existing.favorite,
+          updatedAt: new Date(),
+        },
+        include: {
+          game: true,
+        },
+      });
+
+      // Create activity if status changed to playing or completed
+      if (status !== existing.status) {
+        if (status === GameStatus.PLAYING) {
+          await activityService.createActivity({
+            userId,
+            type: 'started_playing',
+            targetGameId: game.id,
+          });
+        } else if (status === GameStatus.COMPLETED) {
+          await activityService.createActivity({
+            userId,
+            type: 'completed',
+            targetGameId: game.id,
+          });
+        }
+      }
+
+      return userGame;
     }
 
     // Create library entry

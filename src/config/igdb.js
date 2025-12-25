@@ -213,13 +213,8 @@ class IGDBClient {
       }
 
       const bestMatch = scoredResults[0];
-      console.log(
-        `[IGDB] Best match for "${gameName}": "${bestMatch.game.name}" (score: ${bestMatch.score})`
-      );
-
       return bestMatch.game;
     } catch (error) {
-      console.error(`[IGDB] Search failed for "${gameName}":`, error.message);
       return null;
     }
   }

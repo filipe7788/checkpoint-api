@@ -123,16 +123,12 @@ class SyncController {
   async createMapping(req, res, next) {
     try {
       const { platform, originalTitle, gameId, platformData } = req.body;
-      console.log('[createMapping] Received:', { platform, originalTitle, gameId, platformData, platformType: typeof platform });
 
       // Validate platform enum
       const validPlatforms = ['steam', 'xbox', 'psn', 'nintendo', 'epic'];
       const normalizedPlatform = platform?.toLowerCase().trim();
 
-      console.log('[createMapping] Normalized platform:', normalizedPlatform);
-
       if (!normalizedPlatform || !validPlatforms.includes(normalizedPlatform)) {
-        console.log('[createMapping] Invalid platform:', platform, 'valid options:', validPlatforms);
         return res.status(400).json({
           success: false,
           error: {

@@ -19,10 +19,12 @@ router.get('/steam', authenticate, (req, res) => {
   const userId = req.user.id;
 
   // Create a unique state token
-  const state = Buffer.from(JSON.stringify({
-    userId,
-    timestamp: Date.now()
-  })).toString('base64');
+  const state = Buffer.from(
+    JSON.stringify({
+      userId,
+      timestamp: Date.now(),
+    })
+  ).toString('base64');
 
   // Store in global map temporarily (will be cleaned up after callback)
   global.steamOAuthStates = global.steamOAuthStates || {};
@@ -32,7 +34,7 @@ router.get('/steam', authenticate, (req, res) => {
   global.lastSteamOAuthAttempt = {
     userId,
     timestamp: Date.now(),
-    state
+    state,
   };
 
   // Clean up old states (older than 10 minutes)
@@ -64,11 +66,6 @@ router.get('/steam', authenticate, (req, res) => {
   });
 
   const authUrl = `${steamOpenIdUrl}?${params.toString()}`;
-
-  console.log('[OAUTH STEAM] Generated auth URL with state in return_to');
-  console.log('[OAUTH STEAM] State stored in memory for userId:', userId);
-  console.log('[OAUTH STEAM] Return URL:', returnUrl);
-
   // Set state in a secure HTTP-only cookie that will be sent back on callback
   res.cookie('steam_oauth_state', state, {
     httpOnly: true,
@@ -80,7 +77,7 @@ router.get('/steam', authenticate, (req, res) => {
   // Return URL for mobile app to open
   res.json({
     success: true,
-    data: { authUrl, state }
+    data: { authUrl, state },
   });
 });
 
@@ -92,10 +89,6 @@ router.get('/steam', authenticate, (req, res) => {
 router.get(
   '/steam/callback',
   (req, res, next) => {
-    console.log('[STEAM CALLBACK] Full URL:', req.url);
-    console.log('[STEAM CALLBACK] Query params:', req.query);
-    console.log('[STEAM CALLBACK] Headers:', req.headers);
-
     const sendErrorPage = (errorMsg = 'auth_failed') => {
       const redirectUrl = process.env.APP_DEEP_LINK
         ? `${process.env.APP_DEEP_LINK}settings/connections?steam=error&msg=${encodeURIComponent(errorMsg)}`
@@ -157,16 +150,11 @@ router.get(
 
     // Extract state from cookie (primary) or query param (fallback)
     const state = req.cookies?.steam_oauth_state || req.query.state;
-    console.log('[STEAM CALLBACK] State from cookie:', req.cookies?.steam_oauth_state);
-    console.log('[STEAM CALLBACK] State from query:', req.query.state);
-    console.log('[STEAM CALLBACK] Using state:', state);
 
     // Retrieve userId from global state map
     let userId;
     if (state && global.steamOAuthStates && global.steamOAuthStates[state]) {
       userId = global.steamOAuthStates[state];
-      console.log('[STEAM CALLBACK] Retrieved userId from state map:', userId);
-
       // Clean up the state immediately after use
       delete global.steamOAuthStates[state];
 
@@ -174,40 +162,27 @@ router.get(
       res.clearCookie('steam_oauth_state');
     } else {
       // Fallback: use the most recent OAuth attempt (within last 10 minutes)
-      console.warn('[STEAM CALLBACK] State not found, trying fallback to last OAuth attempt');
       if (global.lastSteamOAuthAttempt) {
         const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
         if (global.lastSteamOAuthAttempt.timestamp > tenMinutesAgo) {
           userId = global.lastSteamOAuthAttempt.userId;
-          console.log('[STEAM CALLBACK] Using userId from last OAuth attempt:', userId);
 
           // Clean up
           delete global.lastSteamOAuthAttempt;
-        } else {
-          console.error('[STEAM CALLBACK] Last OAuth attempt too old');
         }
-      } else {
-        console.error('[STEAM CALLBACK] No last OAuth attempt found');
       }
     }
 
     passport.authenticate('steam', { session: false }, (err, steamProfile) => {
-      console.log('[PASSPORT AUTHENTICATE] Error:', err);
-      console.log('[PASSPORT AUTHENTICATE] Steam Profile:', steamProfile);
-
       if (err) {
-        console.error('[STEAM CALLBACK] Authentication error:', err);
-        console.error('[STEAM CALLBACK] Error details:', JSON.stringify(err, null, 2));
         return sendErrorPage('auth_failed');
       }
 
       if (!steamProfile) {
-        console.error('[STEAM CALLBACK] No Steam profile returned');
         return sendErrorPage('no_profile');
       }
 
       if (!userId) {
-        console.error('[STEAM CALLBACK] No userId found - state was missing or invalid');
         return sendErrorPage('no_user');
       }
 

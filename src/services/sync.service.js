@@ -444,8 +444,6 @@ class SyncService {
       }
 
       const igdbGames = await igdbClient.searchMultipleGames(uniqueCoreTitles);
-      console.log(`[Sync] IGDB returned ${igdbGames.length} games`);
-
       // Sync games to library
       let added = 0;
       let updated = 0;
@@ -633,14 +631,6 @@ class SyncService {
   }
 
   async createTitleMapping(userId, platform, originalTitle, gameId, platformData = null) {
-    console.log('[createTitleMapping] Creating mapping and adding to library:', {
-      userId,
-      platform,
-      originalTitle,
-      gameId,
-      platformData,
-    });
-
     // Verify game exists
     const game = await prisma.game.findUnique({
       where: { id: gameId },
@@ -673,8 +663,6 @@ class SyncService {
       },
     });
 
-    console.log('[createTitleMapping] Mapping created:', mapping.id);
-
     // Adicionar o jogo na biblioteca do usuário com os dados da plataforma
     const libraryEntry = await prisma.userGame.upsert({
       where: {
@@ -686,7 +674,7 @@ class SyncService {
       },
       update: {
         // Se já existe, atualiza com novos dados se fornecidos
-        ...(platformData?.hoursPlayed && { playtime: platformData.hoursPlayed }),
+        playtime: platformData?.hoursPlayed ?? 0,
         updatedAt: new Date(),
       },
       create: {
@@ -701,12 +689,8 @@ class SyncService {
       },
     });
 
-    console.log('[createTitleMapping] Added to library:', libraryEntry.id);
-
     // Se tem achievements, adicionar também
     if (platformData?.achievements && platformData.achievements.length > 0) {
-      console.log('[createTitleMapping] Processing achievements:', platformData.achievements.length);
-
       for (const achievement of platformData.achievements) {
         await prisma.achievement.upsert({
           where: {
