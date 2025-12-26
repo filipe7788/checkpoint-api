@@ -69,6 +69,7 @@ model User {
   followers           Follow[]             @relation("Following")
   following           Follow[]             @relation("Followers")
   reviewLikes         ReviewLike[]
+  reviewReplies       ReviewReply[]        @relation("ReviewReplies")
 
   @@index([username])
   @@index([email])
@@ -129,11 +130,13 @@ model Review {
   text             String?
   containsSpoilers Boolean  @default(false)
   likesCount       Int      @default(0)
+  repliesCount     Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   userGame   UserGame      @relation(fields: [userGameId], references: [id], onDelete: Cascade)
   likes      ReviewLike[]
+  replies    ReviewReply[]
   activities Activity[]
 
   @@index([userGameId])
@@ -189,6 +192,22 @@ model ReviewLike {
   @@unique([userId, reviewId])
   @@index([userId])
   @@index([reviewId])
+}
+
+model ReviewReply {
+  id        String   @id @default(uuid())
+  reviewId  String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation("ReviewReplies", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model Activity {
