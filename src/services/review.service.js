@@ -144,6 +144,7 @@ class ReviewService {
             game: {
               select: {
                 id: true,
+                igdbId: true,
                 name: true,
                 coverUrl: true,
               },
@@ -198,6 +199,7 @@ class ReviewService {
             game: {
               select: {
                 id: true,
+                igdbId: true,
                 name: true,
                 coverUrl: true,
               },
