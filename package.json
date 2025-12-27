@@ -27,6 +27,7 @@
   "author": "Filipe da Cruz Ribeiro",
   "license": "MIT",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.705.0",
     "@prisma/client": "^5.8.0",
     "axios": "^1.6.5",
     "bcrypt": "^5.1.1",
@@ -39,11 +40,15 @@
     "helmet": "^7.1.0",
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
     "passport": "^0.7.0",
     "passport-apple": "^2.0.2",
     "passport-google-oauth20": "^2.0.0",
     "passport-steam": "^1.0.18",
-    "psn-api": "^2.8.0"
+    "psn-api": "^2.8.0",
+    "resend": "^4.0.1",
+    "sharp": "^0.33.5",
+    "uuid": "^11.0.3"
   },
   "devDependencies": {
     "eslint": "^8.56.0",
