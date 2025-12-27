@@ -128,21 +128,22 @@ class AuthService {
 
     // Generate reset token (valid for 1 hour)
     const resetToken = crypto.randomBytes(32).toString('hex');
-    // const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-    // const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     // Store hashed token in user record
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        // Note: You'll need to add these fields to the User model
-        // resetPasswordToken: resetTokenHash,
-        // resetPasswordExpiry: resetTokenExpiry,
+        resetPasswordToken: resetTokenHash,
+        resetPasswordExpiry: resetTokenExpiry,
       },
     });
 
     // TODO: Send email with reset link
-    // In production, use a mailer service
+    // In production, use a mailer service like SendGrid, AWS SES, or Resend
+    // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    // await emailService.sendPasswordResetEmail(user.email, resetUrl);
 
     return {
       message: SuccessMessages.PASSWORD_RESET_EMAIL_SENT,
@@ -152,13 +153,13 @@ class AuthService {
   }
 
   async resetPassword(token, newPassword) {
-    // const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     // Find user with valid reset token
     const user = await prisma.user.findFirst({
       where: {
-        // resetPasswordToken: resetTokenHash,
-        // resetPasswordExpiry: { gt: new Date() },
+        resetPasswordToken: resetTokenHash,
+        resetPasswordExpiry: { gt: new Date() },
       },
     });
 
@@ -174,8 +175,8 @@ class AuthService {
       where: { id: user.id },
       data: {
         passwordHash,
-        // resetPasswordToken: null,
-        // resetPasswordExpiry: null,
+        resetPasswordToken: null,
+        resetPasswordExpiry: null,
       },
     });
 

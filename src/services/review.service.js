@@ -326,6 +326,37 @@ class ReviewService {
 
     return { message: 'Review unliked successfully' };
   }
+
+  async getReviewLikes(reviewId, limit = 20, offset = 0) {
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review) {
+      throw new NotFoundError(ErrorCode.REVIEW_NOT_FOUND);
+    }
+
+    const likes = await prisma.reviewLike.findMany({
+      where: { reviewId },
+      take: limit,
+      skip: offset,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            avatar: true,
+            bio: true,
+            followersCount: true,
+            followingCount: true,
+          },
+        },
+      },
+    });
+
+    return likes.map(like => like.user);
+  }
 }
 
 module.exports = new ReviewService();

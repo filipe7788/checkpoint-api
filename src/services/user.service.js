@@ -223,6 +223,86 @@ class UserService {
 
     return following.map(f => f.following);
   }
+
+  async searchUsers(query, limit = 20, offset = 0) {
+    if (!query || query.length < 2) {
+      return [];
+    }
+
+    const users = await prisma.user.findMany({
+      where: {
+        OR: [
+          {
+            username: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+          {
+            email: {
+              contains: query,
+              mode: 'insensitive',
+            },
+          },
+        ],
+        isBanned: false,
+      },
+      select: {
+        id: true,
+        username: true,
+        avatar: true,
+        bio: true,
+        followersCount: true,
+        followingCount: true,
+      },
+      take: limit,
+      skip: offset,
+      orderBy: [
+        { followersCount: 'desc' },
+        { username: 'asc' },
+      ],
+    });
+
+    return users;
+  }
+
+  async uploadAvatar(userId, file) {
+    const uploadService = require('./upload.service');
+
+    // Get current user to check if they have an old avatar
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { avatar: true },
+    });
+
+    // Upload new avatar
+    const avatarUrl = await uploadService.uploadAvatar(file, userId);
+
+    // Delete old avatar if exists
+    if (currentUser.avatar) {
+      await uploadService.deleteAvatar(currentUser.avatar);
+    }
+
+    // Update user with new avatar URL
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { avatar: avatarUrl },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        avatar: true,
+        bio: true,
+        role: true,
+        followersCount: true,
+        followingCount: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return user;
+  }
 }
 
 module.exports = new UserService();

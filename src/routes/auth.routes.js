@@ -33,17 +33,15 @@ router.post('/refresh', validate(schemas.refreshToken), authController.refreshTo
  * @route   POST /auth/forgot-password
  * @desc    Request password reset
  * @access  Public
- * @status  TODO - Not implemented (email service required)
  */
-// router.post('/forgot-password', validate(schemas.forgotPassword), authController.forgotPassword);
+router.post('/forgot-password', validate(schemas.forgotPassword), authController.forgotPassword);
 
 /**
  * @route   POST /auth/reset-password
  * @desc    Reset password with token
  * @access  Public
- * @status  TODO - Not implemented (email service required)
  */
-// router.post('/reset-password', validate(schemas.resetPassword), authController.resetPassword);
+router.post('/reset-password', validate(schemas.resetPassword), authController.resetPassword);
 
 /**
  * @route   GET /auth/google

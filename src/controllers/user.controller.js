@@ -84,6 +84,34 @@ class UserController {
       next(error);
     }
   }
+
+  async searchUsers(req, res, next) {
+    try {
+      const { q: query, limit = 20, offset = 0 } = req.query;
+
+      const users = await userService.searchUsers(query, parseInt(limit), parseInt(offset));
+
+      res.json({
+        success: true,
+        data: users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async uploadAvatar(req, res, next) {
+    try {
+      const user = await userService.uploadAvatar(req.user.id, req.file);
+
+      res.json({
+        success: true,
+        data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new UserController();

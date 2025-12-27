@@ -3,6 +3,14 @@ const router = express.Router();
 const userController = require('../controllers/user.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { validate, schemas } = require('../middleware/validator');
+const { upload } = require('../middleware/upload.middleware');
+
+/**
+ * @route   GET /users/search
+ * @desc    Search users by username or email
+ * @access  Public
+ */
+router.get('/search', userController.searchUsers);
 
 /**
  * @route   GET /users/me
@@ -17,6 +25,13 @@ router.get('/me', authenticate, userController.getMe);
  * @access  Private
  */
 router.put('/me', authenticate, validate(schemas.updateProfile), userController.updateMe);
+
+/**
+ * @route   POST /users/me/avatar
+ * @desc    Upload user avatar
+ * @access  Private
+ */
+router.post('/me/avatar', authenticate, upload.single('avatar'), userController.uploadAvatar);
 
 /**
  * @route   GET /users/me/stats

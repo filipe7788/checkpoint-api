@@ -38,6 +38,26 @@ enum ActivityType {
   followed_user
 }
 
+enum ReportType {
+  review
+  reply
+}
+
+enum ReportReason {
+  spam
+  offensive
+  inappropriate
+  harassment
+  other
+}
+
+enum ReportStatus {
+  pending
+  reviewed
+  resolved
+  dismissed
+}
+
 // ==================== MODELS ====================
 
 model User {
@@ -59,6 +79,10 @@ model User {
   appleId         String?  @unique
   profileImageUrl String?
 
+  // Password reset fields
+  resetPasswordToken  String?
+  resetPasswordExpiry DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -70,6 +94,7 @@ model User {
   following           Follow[]             @relation("Followers")
   reviewLikes         ReviewLike[]
   reviewReplies       ReviewReply[]        @relation("ReviewReplies")
+  reports             Report[]
 
   @@index([username])
   @@index([email])
@@ -263,4 +288,26 @@ model OAuthConnection {
   @@unique([userId, provider])
   @@index([userId])
   @@index([provider])
+}
+
+model Report {
+  id           String       @id @default(uuid())
+  reporterId   String
+  type         ReportType
+  targetId     String
+  reason       ReportReason
+  description  String?
+  status       ReportStatus @default(pending)
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([type])
+  @@index([targetId])
+  @@index([status])
+  @@index([createdAt])
 }

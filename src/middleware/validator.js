@@ -105,6 +105,14 @@ const schemas = {
     platform: Joi.string(),
     favorite: Joi.boolean(),
   }),
+
+  // Report schemas
+  createReport: Joi.object({
+    type: Joi.string().valid('review', 'reply').required(),
+    targetId: Joi.string().uuid().required(),
+    reason: Joi.string().valid('spam', 'offensive', 'inappropriate', 'harassment', 'other').required(),
+    description: Joi.string().max(500).allow(''),
+  }),
 };
 
 module.exports = {

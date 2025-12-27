@@ -62,6 +62,13 @@ router.post('/:id/like', authenticate, reviewController.like);
 router.delete('/:id/like', authenticate, reviewController.unlike);
 
 /**
+ * @route   GET /reviews/:id/likes
+ * @desc    Get users who liked a review
+ * @access  Public
+ */
+router.get('/:id/likes', reviewController.getLikes);
+
+/**
  * @route   POST /reviews/:reviewId/replies
  * @desc    Create a reply to a review
  * @access  Private

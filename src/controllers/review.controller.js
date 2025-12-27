@@ -107,6 +107,20 @@ class ReviewController {
       next(error);
     }
   }
+
+  async getLikes(req, res, next) {
+    try {
+      const { limit = 20, offset = 0 } = req.query;
+      const users = await reviewService.getReviewLikes(req.params.id, parseInt(limit), parseInt(offset));
+
+      res.json({
+        success: true,
+        data: users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new ReviewController();
