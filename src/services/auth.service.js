@@ -5,6 +5,7 @@ const prisma = require('../config/database');
 const { UnauthorizedError, ConflictError, BadRequestError } = require('../utils/errors');
 const { ErrorCode } = require('../utils/errorCodes');
 const { SuccessMessages } = require('../utils/constants');
+const emailService = require('./email.service');
 
 class AuthService {
   async register(email, username, password) {
@@ -140,10 +141,13 @@ class AuthService {
       },
     });
 
-    // TODO: Send email with reset link
-    // In production, use a mailer service like SendGrid, AWS SES, or Resend
-    // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-    // await emailService.sendPasswordResetEmail(user.email, resetUrl);
+    // Send password reset email
+    try {
+      await emailService.sendPasswordResetEmail(user.email, resetToken);
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
+      // Continue even if email fails - user can still use the token if in development
+    }
 
     return {
       message: SuccessMessages.PASSWORD_RESET_EMAIL_SENT,
