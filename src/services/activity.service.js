@@ -28,14 +28,17 @@ class ActivityService {
 
     const followingIds = following.map(f => f.followingId);
 
-    if (followingIds.length === 0) {
+    // Include the current user's own activities in the feed
+    const userIdsToShow = [...followingIds, userId];
+
+    if (userIdsToShow.length === 0) {
       return [];
     }
 
-    // Get activities from followed users
+    // Get activities from followed users and own activities
     const activities = await prisma.activity.findMany({
       where: {
-        userId: { in: followingIds },
+        userId: { in: userIdsToShow },
       },
       take: limit,
       skip: offset,
