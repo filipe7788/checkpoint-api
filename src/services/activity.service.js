@@ -64,6 +64,15 @@ class ActivityService {
             rating: true,
             text: true,
             likesCount: true,
+            userGame: {
+              select: {
+                game: {
+                  select: {
+                    igdbId: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
