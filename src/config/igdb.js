@@ -160,6 +160,16 @@ class IGDBClient {
     const commonWords = searchWords.filter(word => gameWords.includes(word));
     score += commonWords.length * 10;
 
+    // Penalty for sequel numbers when search doesn't have them
+    // Detects: 2, 3, II, III, IV, V, etc. at the end of the name
+    const sequelPattern = /\s+(2|3|4|5|6|7|8|9|10|ii|iii|iv|v|vi|vii|viii|ix|x)$/i;
+    const searchHasSequel = sequelPattern.test(searchLower);
+    const gameHasSequel = sequelPattern.test(gameLower);
+
+    if (!searchHasSequel && gameHasSequel) {
+      score -= 100; // Heavy penalty for sequel mismatch
+    }
+
     // Penalty for DLC/expansion
     if (this.isDLCOrExpansion(igdbGame)) {
       score -= 200;
